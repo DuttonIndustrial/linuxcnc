@@ -228,6 +228,15 @@ static const char* hm2_get_pin_secondary_name(hm2_pin_t *pin) {
         }
         break;
 
+	case HM2_GTAG_SIGMA5ABS:
+            switch (sec_pin) {
+		case 0x1: return "Data+";
+		case 0x2: return "Data-";
+	}
+        break;
+          
+
+
         case HM2_GTAG_XY2MOD:
             if (sec_dir == 0x80){ // Output pin codes
                 switch (sec_pin) {
@@ -934,6 +943,7 @@ void hm2_configure_pins(hostmot2_t *hm2) {
     hm2_pins_allocate_all(hm2, HM2_GTAG_MUXED_ENCODER, (hm2->encoder.num_instances+1)/2);
     hm2_pins_allocate_all(hm2, HM2_GTAG_HM2DPLL, hm2->dpll.num_instances);
     hm2_pins_allocate_all(hm2, HM2_GTAG_SSR, hm2->ssr.num_instances);
+    hm2_pins_allocate_all(hm2, HM2_GTAG_SIGMA5ABS, hm2->sigma5abs.num_instances);
 }
 
 const char *hm2_get_general_function_hal_name(int gtag) {

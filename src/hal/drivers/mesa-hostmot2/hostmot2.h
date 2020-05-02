@@ -115,8 +115,9 @@
 #define HM2_GTAG_DDMA              (23) // Not supported
 #define HM2_GTAG_BISS              (24) 
 #define HM2_GTAG_FABS              (25) 
-#define HM2_GTAG_HM2DPLL           (26) 
-#define HM2_GTAG_INMUX             (30) 
+#define HM2_GTAG_HM2DPLL           (26)
+#define HM2_GTAG_INMUX             (30)
+#define HM2_GTAG_SIGMA5ABS         (31) 
 #define HM2_GTAG_INM               (35) 
 #define HM2_GTAG_DPAINTER          (42) 
 #define HM2_GTAG_XY2MOD            (43) 
@@ -1151,6 +1152,104 @@ typedef struct {
     rtapi_u8 num_registers;
     struct rtapi_heap *heap;
 } hm2_pktuart_t;
+
+
+
+//Yaskawa Sigma 5 Absolute encoder
+
+typedef struct {
+
+//    hal_bit_t* rawlatch;
+//    hal_u32_t* rawcounts;
+
+//    hal_u32_t* timerA;
+//    hal_u32_t* timerB;
+//    hal_bit_t* input_index;
+//    hal_bit_t* input_a;
+//    hal_bit_t* input_b;
+//    hal_bit_t* input_c;
+//    hal_u32_t* turns;
+
+//    hal_bit_t* reset;
+    hal_bit_t* error;
+    
+
+	hal_bit_t* transmit;
+    hal_u32_t* bitrate;
+    hal_u32_t* tx_count;
+    hal_u32_t* tx0;
+    hal_u32_t* tx1;
+    hal_u32_t* tx2;
+    hal_u32_t* tx3;
+    hal_u32_t* rx_count;
+    hal_u32_t* rx0;
+    hal_u32_t* rx1;
+    hal_u32_t* rx2;
+    hal_u32_t* rx3;
+    hal_u32_t* rx4;
+    hal_u32_t* debug;
+
+    hal_u32_t* decode0;
+    hal_u32_t* decode1;
+    hal_u32_t* decode2;
+    hal_u32_t* decode3;
+} hm2_sigma5abs_instance_t;
+
+
+typedef struct {
+
+    rtapi_u32 clock_frequency;
+
+	int num_instances;
+	hm2_sigma5abs_instance_t *instances;
+
+	rtapi_u32 instance_stride;
+
+	rtapi_u32 transmit_addr;
+	rtapi_u32* transmit_reg;
+
+    rtapi_u32 bitrate_addr;
+    rtapi_u32* bitrate_reg;
+
+	rtapi_u32 tx_count_addr;
+	rtapi_u32* tx_count_reg;
+
+    rtapi_u32 tx0_addr;
+    rtapi_u32* tx0_reg;
+
+    rtapi_u32 tx1_addr;
+    rtapi_u32* tx1_reg;
+
+    rtapi_u32 tx2_addr;
+    rtapi_u32* tx2_reg;
+
+    rtapi_u32 tx3_addr;
+    rtapi_u32* tx3_reg;
+
+	rtapi_u32 rx_count_addr;
+	rtapi_u32* rx_count_reg;
+
+    rtapi_u32 rx0_addr;
+    rtapi_u32* rx0_reg;
+
+    rtapi_u32 rx1_addr;
+    rtapi_u32* rx1_reg;
+
+    rtapi_u32 rx2_addr;
+    rtapi_u32* rx2_reg;
+
+    rtapi_u32 rx3_addr;
+    rtapi_u32* rx3_reg;
+
+    rtapi_u32 rx4_addr;
+    rtapi_u32* rx4_reg;
+
+    rtapi_u32 debug_addr;
+    rtapi_u32* debug_reg;
+} hm2_sigma5abs_t;
+	
+
+ 
 //
 // HM2DPLL
 //
@@ -1345,6 +1444,7 @@ typedef struct {
         int num_bspis;
         int num_uarts;
         int num_pktuarts;
+    	int num_sigma5abs;
         int num_dplls;
         int num_inmuxs;
         int num_inms;
@@ -1389,6 +1489,7 @@ typedef struct {
     hm2_bspi_t bspi;
     hm2_uart_t uart;
     hm2_pktuart_t pktuart;
+    hm2_sigma5abs_t sigma5abs;
     hm2_ioport_t ioport;
     hm2_watchdog_t watchdog;
     hm2_dpll_t dpll;
@@ -1639,6 +1740,19 @@ void hm2_pktuart_process_tram_read(hostmot2_t *hm2, long period);  //  ??
 int hm2_pktuart_setup(char *name, int bitrate, rtapi_s32 tx_mode, rtapi_s32 rx_mode, int txclear, int rxclear);
 int hm2_pktuart_send(char *name,  unsigned char data[], rtapi_u8 *num_frames, rtapi_u16 frame_sizes[]);
 int hm2_pktuart_read(char *name, unsigned char data[],  rtapi_u8 *num_frames, rtapi_u16 *max_frame_length, rtapi_u16 frame_sizes[]);
+
+
+//
+// Yaskawa Sigma 5 ABS encoder
+//
+int hm2_sigma5abs_parse_md(hostmot2_t* hm2, int md_index);
+void hm2_sigma5abs_cleanup(hostmot2_t* hm2);
+void hm2_sigma5abs_write(hostmot2_t* hm2);
+void hm2_sigma5abs_force_write(hostmot2_t* hm2);
+void hm2_simga5abs_prepare_tram_write(hostmot2_t* hm2);
+void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2);
+void hm2_sigma5abs_print_module(hostmot2_t* hm2);
+
 
 //
 // hm2dpll functions
