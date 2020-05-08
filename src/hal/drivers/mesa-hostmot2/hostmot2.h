@@ -1159,40 +1159,53 @@ typedef struct {
 
 typedef struct {
 
-//    hal_bit_t* rawlatch;
-//    hal_u32_t* rawcounts;
+    hal_u32_t* magic1;
+    hal_u32_t* magic2;
+    hal_u32_t* magic3;
 
-//    hal_u32_t* timerA;
-//    hal_u32_t* timerB;
-//    hal_bit_t* input_index;
-//    hal_bit_t* input_a;
-//    hal_bit_t* input_b;
-//    hal_bit_t* input_c;
-//    hal_u32_t* turns;
+    hal_s32_t* rawcounts; 
+    hal_bit_t* referenced; //true when referenced
+    hal_s32_t* reference;   //absolute count position of index from 0 to ppr
+    hal_u32_t* reference_offset; //offset position from encoder
 
-//    hal_bit_t* reset;
+    hal_bit_t* index_enable;      //encoder index pin
+    hal_float_t* position; //encoder position in scaled units
+    hal_float_t* scale; //encoder position scale
+    hal_float_t* velocity; //estimated velocity in units per second
+
+    hal_u32_t* slowclock;
+    hal_u32_t* fastclock;
+    hal_bit_t* input_z;
+    hal_bit_t* hall_a;
+    hal_bit_t* hall_b;
+    hal_bit_t* hall_c;
+    hal_u32_t* turns;
+    hal_u32_t* crc;
+
+    hal_bit_t* reset;
     hal_bit_t* error;
     
 
-	hal_bit_t* transmit;
     hal_u32_t* bitrate;
+    hal_bit_t* enable;
+    hal_bit_t* transmit;
     hal_u32_t* tx_count;
     hal_u32_t* tx0;
     hal_u32_t* tx1;
-    hal_u32_t* tx2;
-    hal_u32_t* tx3;
     hal_u32_t* rx_count;
     hal_u32_t* rx0;
     hal_u32_t* rx1;
     hal_u32_t* rx2;
     hal_u32_t* rx3;
     hal_u32_t* rx4;
+    hal_u32_t* status;
     hal_u32_t* debug;
 
-    hal_u32_t* decode0;
-    hal_u32_t* decode1;
-    hal_u32_t* decode2;
-    hal_u32_t* decode3;
+    
+    rtapi_s64 prev_abs_counter; //previous absolute count from encoder
+    rtapi_s64 full_raw_counts;  //full position count
+    rtapi_s64 index_offset;           //offset for indexing
+
 } hm2_sigma5abs_instance_t;
 
 
@@ -1205,11 +1218,14 @@ typedef struct {
 
 	rtapi_u32 instance_stride;
 
-	rtapi_u32 transmit_addr;
-	rtapi_u32* transmit_reg;
+	rtapi_u32 control_addr;
+	rtapi_u32* control_reg;
 
     rtapi_u32 bitrate_addr;
     rtapi_u32* bitrate_reg;
+
+    rtapi_u32 timer_addr;
+    rtapi_u32* timer_reg;
 
 	rtapi_u32 tx_count_addr;
 	rtapi_u32* tx_count_reg;
@@ -1219,12 +1235,6 @@ typedef struct {
 
     rtapi_u32 tx1_addr;
     rtapi_u32* tx1_reg;
-
-    rtapi_u32 tx2_addr;
-    rtapi_u32* tx2_reg;
-
-    rtapi_u32 tx3_addr;
-    rtapi_u32* tx3_reg;
 
 	rtapi_u32 rx_count_addr;
 	rtapi_u32* rx_count_reg;
@@ -1243,6 +1253,9 @@ typedef struct {
 
     rtapi_u32 rx4_addr;
     rtapi_u32* rx4_reg;
+
+    rtapi_u32 status_addr;
+    rtapi_u32* status_reg;
 
     rtapi_u32 debug_addr;
     rtapi_u32* debug_reg;
