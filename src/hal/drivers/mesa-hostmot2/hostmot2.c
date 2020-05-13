@@ -114,7 +114,7 @@ static void hm2_read(void *void_hm2, long period) {
     hm2_sserial_process_tram_read(hm2, period);
     hm2_bspi_process_tram_read(hm2, period);
     hm2_absenc_process_tram_read(hm2, period);
-    hm2_sigma5abs_process_tram_read(hm2);
+    hm2_sigma5abs_process_tram_read(hm2, period);
     //UARTS PktUARTS need to be explicity handled by an external component
 
     hm2_tp_pwmgen_process_read(hm2); // check the status of the fault bit
@@ -158,7 +158,6 @@ static void hm2_write(void *void_hm2, long period) {
     hm2_dpll_write(hm2, period); // Update the timer phases
     hm2_led_write(hm2);	      // Update on-board LEDs
     hm2_ssr_write(hm2);
-    hm2_sigma5abs_write(hm2);    //update sigma5abs registers if needed
 
     hm2_raw_write(hm2);
     hm2_finish_write(hm2);
@@ -1779,7 +1778,6 @@ void hm2_force_write(hostmot2_t *hm2) {
     hm2_inmux_force_write(hm2);
     hm2_inm_force_write(hm2);
     hm2_xy2mod_force_write(hm2);
-    hm2_sigma5abs_force_write(hm2);
 
     // NOTE: It's important that the SSR is written *after* the
     // ioport is written.  Initialization of the SSR requires that

@@ -183,12 +183,14 @@ void printdata(const char* data, int size) {
 
 
 //extracts arbitrary bits from an array of bytes and assignes them to value
-//returns -1 on failure, 0 on success
+//if bit_length < 0 it reads bits in reverse
+//does not check arguments
 unsigned int extract_bits(const char* data, unsigned int bit_offset, int bit_length)
 {
     unsigned int reg = 0;
     unsigned int bit = 0;
-
+    
+     
     if(bit_length > 0) {
         for(int index = bit_offset; index < bit_offset+bit_length; index++) {
             reg <<= 1;
@@ -215,42 +217,52 @@ int definePins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
     int ret;
     char name[HAL_NAME_LEN];
     pin_creation_data_t pdata[] = {
+        { "debug.magic1",        HAL_U32, HAL_OUT, (void**)&(inst->magic1)},
+        { "debug.magic2",        HAL_U32, HAL_OUT, (void**)&(inst->magic2)},
+        { "debug.magic3",        HAL_U32, HAL_OUT, (void**)&(inst->magic3)},
+        { "debug.slowclock",    HAL_U32, HAL_OUT, (void**)&(inst->slowclock)},
+        { "debug.fastclock",    HAL_U32, HAL_OUT, (void**)&(inst->fastclock)},
+        { "debug.turns",        HAL_U32, HAL_OUT, (void**)&(inst->turns)},
+        { "debug.crc",          HAL_U32, HAL_OUT, (void**)&(inst->crc)},
+        { "debug.tx-count", HAL_U32, HAL_IN, (void**)&(inst->tx_count)},
+        { "debug.tx0",      HAL_U32, HAL_IN, (void**)&(inst->tx0)},
+        { "debug.tx1",      HAL_U32, HAL_IN, (void**)&(inst->tx1)},
+        { "debug.rx-count", HAL_U32, HAL_OUT, (void**)&(inst->rx_count)},
+        { "debug.rx0",      HAL_U32, HAL_OUT, (void**)&(inst->rx0)},
+        { "debug.rx1",      HAL_U32, HAL_OUT, (void**)&(inst->rx1)},
+        { "debug.rx2",      HAL_U32, HAL_OUT, (void**)&(inst->rx2)},
+        { "debug.rx3",      HAL_U32, HAL_OUT, (void**)&(inst->rx3)},
+        { "debug.rx4",      HAL_U32, HAL_OUT, (void**)&(inst->rx4)},
+        { "debug.debug",        HAL_U32, HAL_OUT, (void**)&(inst->debug)},
+        { "debug.reference-offset", HAL_U32, HAL_OUT, (void**)&(inst->reference_offset)},
+        { "debug.reference-angle", HAL_U32, HAL_OUT, (void**)&(inst->reference_angle)},
+        { "debug.rotor-count",  HAL_U32, HAL_OUT, (void**)&(inst->rotor_count)},
         { "bitrate",  HAL_U32, HAL_IN, (void**)&(inst->bitrate)},
         { "transmit", HAL_BIT, HAL_IN, (void**)&(inst->transmit)},
         { "enable", HAL_BIT, HAL_IN, (void**)&(inst->enable)},
-        { "tx-count", HAL_U32, HAL_IN, (void**)&(inst->tx_count)},
-        { "tx0",      HAL_U32, HAL_IN, (void**)&(inst->tx0)},
-        { "tx1",      HAL_U32, HAL_IN, (void**)&(inst->tx1)},
-        { "rx-count", HAL_U32, HAL_OUT, (void**)&(inst->rx_count)},
-        { "rx0",      HAL_U32, HAL_OUT, (void**)&(inst->rx0)},
-        { "rx1",      HAL_U32, HAL_OUT, (void**)&(inst->rx1)},
-        { "rx2",      HAL_U32, HAL_OUT, (void**)&(inst->rx2)},
-        { "rx3",      HAL_U32, HAL_OUT, (void**)&(inst->rx3)},
-        { "rx4",      HAL_U32, HAL_OUT, (void**)&(inst->rx4)},
         { "status",   HAL_U32, HAL_OUT, (void**)&(inst->status)},
         { "reset",        HAL_BIT, HAL_IN, (void**)&(inst->reset)},
-        { "error",        HAL_BIT, HAL_OUT, (void**)&(inst->error)},
-        { "debug",        HAL_U32, HAL_OUT, (void**)&(inst->debug)},
-        { "crc",          HAL_U32, HAL_OUT, (void**)&(inst->crc)},
+        { "fault",        HAL_BIT, HAL_OUT, (void**)&(inst->fault)},
+        { "fault-count",  HAL_U32, HAL_OUT, (void**)&(inst->fault_count)},
+        { "fault-inc",    HAL_U32, HAL_IN, (void**)&(inst->fault_inc)},
+        { "fault-dec",    HAL_U32, HAL_IN, (void**)&(inst->fault_dec)},
+        { "fault-lim",    HAL_U32, HAL_IN, (void**)&(inst->fault_lim)},
         { "rawcounts",    HAL_S32, HAL_OUT, (void**)&(inst->rawcounts)},
         { "index-enable", HAL_BIT, HAL_IO,  (void**)&(inst->index_enable)},
+        { "velocity",     HAL_FLOAT, HAL_OUT, (void**)&(inst->velocity)},
         { "position",     HAL_FLOAT, HAL_OUT, (void**)&(inst->position)},
         { "scale",        HAL_FLOAT, HAL_IN, (void**)&(inst->scale)},
-        { "velocity",     HAL_FLOAT, HAL_OUT, (void**)&(inst->velocity)},
         { "referenced",   HAL_BIT, HAL_OUT, (void**)&(inst->referenced)},
-        { "reference",    HAL_S32, HAL_OUT, (void**)&(inst->reference)},
-        { "reference-offset", HAL_U32, HAL_OUT, (void**)&(inst->reference_offset)},
-        { "slowclock",    HAL_U32, HAL_OUT, (void**)&(inst->slowclock)},
-        { "fastclock",    HAL_U32, HAL_OUT, (void**)&(inst->fastclock)},
-        { "input-z",      HAL_BIT, HAL_OUT, (void**)&(inst->input_z)},
-        { "hall-a",       HAL_BIT, HAL_OUT, (void**)&(inst->hall_a)},
-        { "hall-b",       HAL_BIT, HAL_OUT, (void**)&(inst->hall_b)},
-        { "hall-c",       HAL_BIT, HAL_OUT, (void**)&(inst->hall_c)},
-        { "turns",        HAL_U32, HAL_OUT, (void**)&(inst->turns)},
-        { "magic1",        HAL_U32, HAL_OUT, (void**)&(inst->magic1)},
-        { "magic2",        HAL_U32, HAL_OUT, (void**)&(inst->magic2)},
-        { "magic3",        HAL_U32, HAL_OUT, (void**)&(inst->magic3)},
-        };
+        { "z",            HAL_BIT, HAL_OUT, (void**)&(inst->z)},
+        { "u",            HAL_BIT, HAL_OUT, (void**)&(inst->u)},
+        { "v",            HAL_BIT, HAL_OUT, (void**)&(inst->v)},
+        { "w",            HAL_BIT, HAL_OUT, (void**)&(inst->w)},
+        { "rotor-offset",  HAL_FLOAT, HAL_IN, (void**)&(inst->rotor_offset)},
+        { "ppr",          HAL_U32, HAL_IN, (void**)&(inst->ppr)},
+        { "pole-count",   HAL_U32, HAL_IN, (void**)&(inst->pole_count)},
+        { "rotor-angle",  HAL_FLOAT, HAL_OUT, (void**)&(inst->rotor_angle)},
+
+       };
 
         for(int index = 0; index < sizeof(pdata)/sizeof(pin_creation_data_t); index++) {
             if(snprintf(name, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, id, pdata[index].name) == HAL_NAME_LEN) {
@@ -393,49 +405,54 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
             return -1;
         }
     
-        inst->prev_abs_counter = 0;
-        inst->full_raw_counts = 0;
+        inst->prev_reset = 0;
+        inst->rel_count = 0;
         inst->index_offset = 0;
+        inst->prev_encoder_count = 0;
+        inst->first_cycle= 1;
+       
         *(inst->rawcounts) = 0;
         *(inst->referenced) = 0;
-        *(inst->reference) = 0;
-        *(inst->reference_offset) = 0;
+        *(inst->reference_angle) = 0;
         *(inst->index_enable) = 0;
-        *(inst->position) = 0;
+        *(inst->position) = 0.0;
         *(inst->scale) = 1.0;
         *(inst->velocity) = 0;
         *(inst->slowclock) = 0;
         *(inst->fastclock) = 0;
-        *(inst->input_z) = 0;
-        *(inst->hall_a) = 0;
-        *(inst->hall_b) = 0;
-        *(inst->hall_c) = 0;
+        *(inst->z) = 0;
+        *(inst->u) = 0;
+        *(inst->v) = 0;
+        *(inst->w) = 0;
         *(inst->turns) = 0;
         *(inst->crc) = 0;
-        *(inst->reset) = false;
-        *(inst->error) = false;
+        *(inst->reset) = 0;
+        *(inst->fault) = 0;
+        *(inst->fault_count) = 0;
+        *(inst->fault_inc) = 10;
+        *(inst->fault_dec) = 1;
+        *(inst->fault_lim) = 200;
         *(inst->bitrate) = 13;
-        *(inst->enable) = 1;
-        *(inst->transmit) = 1;
+        *(inst->enable) = 0;
+        *(inst->transmit) = 0;
         *(inst->tx0) = 0x55555553;
         *(inst->tx1) = 0xF7DF7D7E;
         *(inst->tx_count) = 64;
         *(inst->crc) = 0;
         *(inst->status) = 0;
         *(inst->debug) = 0;
+        *(inst->rotor_offset) = -.333333;
+        *(inst->pole_count) = 8;
+        *(inst->rotor_angle) = 0;
+        *(inst->rotor_count) = 0;
+        *(inst->ppr) = 2097152; //encoder pulses per turn
     }
 	
-    
+   
     return hm2->sigma5abs.num_instances;
 }
 
 void hm2_sigma5abs_cleanup(hostmot2_t* hm2) {
-}
-
-void hm2_sigma5abs_write(hostmot2_t *hm2) {
-}
-
-void hm2_sigma5abs_force_write(hostmot2_t *hm2) {
 }
 
 
@@ -451,146 +468,296 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
         hm2->sigma5abs.tx0_reg[i] = *inst->tx0;
         hm2->sigma5abs.tx1_reg[i] = *inst->tx1;
 
-        if(*inst->enable) {
+        if(!*(inst->fault) && *(inst->enable)) {
             hm2->sigma5abs.control_reg[i] |= 0x2;
         } else {
             hm2->sigma5abs.control_reg[i] &= ~0x2;
         }
 
         if(*inst->transmit) {
+            //alternate transmit bit every cycle to trigger manchester trx
             hm2->sigma5abs.control_reg[i] ^= 0x1;
         }
+   }
+}
+
+
+
+void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, int i, hal_float_t fPeriods) {
+    char reg[20] = {0};  //raw data passed from manchester trx with an hdlc message encoded in it
+    char data[14] = {0}; //actual encoder data parsed from reg
+   
+    hal_bit_t prev_referenced = *(inst->referenced);
+
+    hal_u32_t hall = 0;
+    hal_u32_t hall_position = 0;
+
+    int counter_bits = 24;
+    rtapi_s64 prev_rel_count = inst->rel_count;
+    rtapi_s64 counter_center = (1U << (counter_bits-1));
+    rtapi_s64 wrap_counts = (1U << counter_bits);
+    rtapi_s64 dCounts = 0;
+    
+
+    rtapi_s64 encoder_count = 0;
+    rtapi_s64 encoder_angle = 0;
+    rtapi_s64 counter_rollover = 0;
+    rtapi_s64 direction = 0;
+
+    hal_s32_t rotor_offset_counts = 0;
+
+    rtapi_s64 rotor_pulses = *(inst->ppr) / (*inst->pole_count / 2);
+
+
+    //reset on rising edge of reset pin
+    if(!inst->prev_reset && *(inst->reset) && *(inst->fault)) {
+        *inst->fault = 0;
+        *inst->fault_count = 0;
+    }
+
+    inst->prev_reset = *(inst->reset);
+
+
+    if(*(inst->fault)) {
+        return;
+    }
+
+
+    if(fabs(*(inst->rotor_offset)) > 1.0) {
+        HM2_ERR("rotor-offset is invalid. Must be between -1.0 and 1.0 .\n");
+        *(inst->fault) = 1;
+        return;
+    }
+
+    rotor_offset_counts = (*inst->rotor_offset * (hal_float_t)rotor_pulses);
+
+    //scaled position value for motion controller 
+    if(*(inst->scale) == 0.0) {
+        HM2_ERR("scale of 0.0 is invalid.\n");
+        *(inst->fault) = 1;
+        return;
+    }
+
+
+    if(*(inst->fault_count) > *(inst->fault_lim)) {
+        *inst->fault = 1;
+        HM2_ERR("Too many encoder communication faults.\n");
+        return;
+    }
+
+    *(inst->debug) = (hal_u32_t)hm2->sigma5abs.debug_reg[i];
+    *(inst->status) = (hal_u32_t)hm2->sigma5abs.status_reg[i];
+    *(inst->rx_count) = (hal_u32_t)hm2->sigma5abs.rx_count_reg[i];
+    *(inst->rx0) = (hal_u32_t)hm2->sigma5abs.rx0_reg[i];
+    *(inst->rx1) = (hal_u32_t)hm2->sigma5abs.rx1_reg[i];
+    *(inst->rx2) = (hal_u32_t)hm2->sigma5abs.rx2_reg[i];
+    *(inst->rx3) = (hal_u32_t)hm2->sigma5abs.rx3_reg[i];
+    *(inst->rx4) = (hal_u32_t)hm2->sigma5abs.rx4_reg[i];
+
+    *(hal_u32_t*)(reg+(0*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx0_reg[i]);
+    *(hal_u32_t*)(reg+(1*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx1_reg[i]);
+    *(hal_u32_t*)(reg+(2*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx2_reg[i]);
+    *(hal_u32_t*)(reg+(3*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx3_reg[i]);
+    *(hal_u32_t*)(reg+(4*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx4_reg[i]);
+
+
+    if(parse_hdlc(reg, 20, data, 14) == 112) {
+        //check crc
+        *(inst->crc) = extract_bits(data, 96, 16);
+
+        if(crc(data, 12) == *(inst->crc)) {
+
+            *(inst->magic1) = extract_bits(data, 0, 6); //appears to be the function code sent to the encoder
+            *(inst->referenced) = (0 == extract_bits(data, 6, 1)); //becomes 0 once first index pulse is seen
+
+            *(inst->magic2) = extract_bits(data, 7, 10); //unknown
+            *(inst->slowclock)= extract_bits(data, 16, -8); //counts up every 1/5 of a second
+            *(inst->fastclock) = extract_bits(data, 24, 26); //appears to be random data that changes every request
+            *(inst->magic3) = extract_bits(data, 50, 6); //unknown
+
+            encoder_count =  extract_bits(data, 56, -counter_bits); //absolute turn counter
+            encoder_angle = encoder_count % *(inst->ppr);
+
+            *(inst->z) =  extract_bits(data, 80, 1);
+             
+            hall = extract_bits(data, 81, 3);
+            *(inst->u) =  extract_bits(data, 81,1);
+            *(inst->v) = extract_bits(data, 82, 1);
+            *(inst->w) = extract_bits(data, 83, 1);
+             
+            *(inst->reference_offset) = extract_bits(data, 84, 9);
+            *(inst->turns) = extract_bits(data, 93, -3);  //8 bit full turn counter
+
+            //encoder count to turn value chart
+            //2097152      7 0 1        
+            //4194304        0 1 2
+            //6291456          1 2 3
+            //8388608            2 3 4
+            //10485760             3 4 5
+            //12582912               4 5 6
+            //14680064                 5 6 7
+            //16777216                   6 7 0
+            //can we eliminate this?
+            if(*(inst->turns) == 0 || *(inst->turns) == 7) {
+                if(inst->prev_encoder_count > counter_center && encoder_count < counter_center) {
+                    //positive rollover
+                    counter_rollover = wrap_counts; 
+                } else if(inst->prev_encoder_count < counter_center && encoder_count > counter_center) {
+                    //negative_rollover
+                    counter_rollover = -wrap_counts;
+                }
+            }
+
+            dCounts = encoder_count - inst->prev_encoder_count + counter_rollover;
+            inst->rel_count += dCounts;
+            inst->prev_encoder_count = encoder_count;
+            *(inst->rawcounts) = inst->rel_count;
+
+ 
+
+
+
+            //direction of travel since last update
+            direction = prev_rel_count <= inst->rel_count ? 1 : -1;
+
+
+
+            /*
+              when the encoder first powers on it does not know where the index point is.
+              the first time that the index is passed a flag and an offset value is recorded in the encoders memory.
+              The offset is the number of counts passed before the encoder packet was transmitted
+              depending upon the direction of travel we must add or subtract that offset to determine
+              the absolute reference position.
+            */
+            if(!prev_referenced  && *(inst->referenced)) {
+               *(inst->reference_angle) = (encoder_angle
+                                           - (direction * *(inst->reference_offset)) 
+                                           + *(inst->ppr) //avoid negative remainder
+                                                        ) % *(inst->ppr);
+            }
+                        
+            
+   
+            /*
+                simulate an incremental encoder's behavior
+                the index position is already known so we set the 
+                0 point to the next index that the rotor is moving towards            
+            */  
+            if(*(inst->index_enable) && *(inst->referenced)) {
+                if(direction > 0) {
+                    if(encoder_angle < *(inst->reference_angle)) {
+                        inst->index_offset = inst->rel_count + *(inst->reference_angle) - encoder_angle;
+                    } else {
+                        inst->index_offset = inst->rel_count + *(inst->ppr) - encoder_angle + *(inst->reference_angle);
+                    }
+                } else {
+                    if(encoder_angle < *(inst->reference_angle)) {
+                        inst->index_offset = inst->rel_count - *(inst->ppr) - *(inst->reference_angle) - encoder_angle;
+                    } else {
+                        inst->index_offset = inst->rel_count - encoder_angle - *(inst->reference_angle);
+                    }
+                }
+                  
+                *(inst->index_enable) = 0;
+            }
+            
+
+            
+            *(inst->position) = ((hal_float_t)(inst->rel_count - inst->index_offset)) / *(inst->scale);
+
+            *(inst->velocity) = (dCounts / *inst->scale) / fPeriods;
+
+
+
+
+              
+
+            /*
+                motor commutation
+                rotor_angle
+            */
+            if(*(inst->referenced)) {
+                //the rotor angle is now known exactly because we
+                //comm_offset = - *(inst->rotor_offset) - *(inst->reference_angle);
+                *(inst->rotor_count) = (*(inst->ppr)        //avoid negative remainder
+                                        + encoder_angle
+                                        - rotor_offset_counts
+                                        - *(inst->reference_angle)
+                                        ) % rotor_pulses;
+            } else {
+                //trapezoidal commutation
+                hall_position = 0;
+
+                switch(hall) {
+                    case 5:   //101 = 0/6 - 1/6 
+                        hall_position = rotor_pulses / 12;
+                        break;
+                    case 1: //001 = 1/6 - 2/6
+                        hall_position = (rotor_pulses * 3) / 12;
+                        break;
+                    case 3: //011 = 2/6 - 3/6
+                        hall_position = (rotor_pulses * 5) / 12;
+                        break;
+                    case 2: //010 = 3/6 - 4/6
+                        hall_position = (rotor_pulses * 7) / 12;
+                        break;
+                    case 6: //110 = 4/6 - 5/6
+                        hall_position = (rotor_pulses * 9) / 12;
+                        break;
+                    case 4: //100 = 5/6 - 6/6
+                        hall_position = (rotor_pulses * 11) / 12;
+                        break;
+                    default:
+                        hall_position = 0;
+                        break;
+                }
+
+                *(inst->rotor_count) = (*(inst->ppr)
+                                        + hall_position
+                                        - rotor_offset_counts
+                                        ) % rotor_pulses;
+            }
+        
+            *(inst->rotor_angle) = ((hal_float_t)*(inst->rotor_count)) / ((hal_float_t)rotor_pulses);
+
+
+            if(*(inst->fault_count) > *(inst->fault_dec)) {
+                *(inst->fault_count) -= *(inst->fault_dec);
+            } else {
+                *(inst->fault_count) = 0;
+            }
+
+            inst->first_cycle = 0;
+        } else {
+            if(!inst->first_cycle) {
+                *(inst->fault_count) += *(inst->fault_inc); //bad crc
+                //HM2_ERR("BAD CRC!\n");
+            }
+        }
+    } else {
+        if(!inst->first_cycle) {
+            *(inst->fault_count) += *(inst->fault_inc); //no hdlc data
+            //HM2_ERR("BAD HDLC!\n");
+        }
+
     }
 }
 
 
-void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2) {
+
+void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long periodns) {
 	hm2_sigma5abs_instance_t* inst;
 
-    char reg[20];  //raw data passed from encoder with an hdlc message encoded in it
-    char data[14]; //actual encoder data parsed from reg
+    hal_float_t fPeriods = (hal_float_t)(periodns * 1e-9);
     
-    int hdlc_ret = 0; 
 
-    hal_bit_t prev_referenced = 0;
-
-    int ppr = 2097152; //encoder pulses per turn
-    int counter_width = 24;
-    rtapi_s64 counter_center = 1U << (counter_width-1);
-    rtapi_s64 wrap_counts = 1U << counter_width;
-
-    rtapi_s64 prev_full_raw_counts = 0;
-    rtapi_s64 abs_counter;
-    rtapi_s64 counter_rollover = 0;
-    rtapi_s64 direction = 0;
-    
     for(int i = 0; i < hm2->sigma5abs.num_instances; i++) {
         inst = &hm2->sigma5abs.instances[i];
 
-        prev_referenced = *(inst->referenced);
-        prev_full_raw_counts = inst->full_raw_counts;
+        
 
-        //update status register
-        *(inst->debug) = (hal_u32_t)hm2->sigma5abs.debug_reg[i];
-        *(inst->status) = (hal_u32_t)hm2->sigma5abs.status_reg[i];
-        *(inst->rx_count) = (hal_u32_t)hm2->sigma5abs.rx_count_reg[i];
-        *(inst->rx0) = (hal_u32_t)hm2->sigma5abs.rx0_reg[i];
-        *(inst->rx1) = (hal_u32_t)hm2->sigma5abs.rx1_reg[i];
-        *(inst->rx2) = (hal_u32_t)hm2->sigma5abs.rx2_reg[i];
-        *(inst->rx3) = (hal_u32_t)hm2->sigma5abs.rx3_reg[i];
-        *(inst->rx4) = (hal_u32_t)hm2->sigma5abs.rx4_reg[i];
-
-
-        *(hal_u32_t*)(reg+(0*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx0_reg[i]);
-        *(hal_u32_t*)(reg+(1*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx1_reg[i]);
-        *(hal_u32_t*)(reg+(2*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx2_reg[i]);
-        *(hal_u32_t*)(reg+(3*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx3_reg[i]);
-        *(hal_u32_t*)(reg+(4*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx4_reg[i]);
-
-
-        memset(data, 0, sizeof(data));
-        hdlc_ret = parse_hdlc(reg, 20, data, 14);
-    
-        if(hdlc_ret == 112) {
-            //check crc
-            *(inst->crc) = extract_bits(data, 96, 16);
-
-            if(crc(data, 12) == *(inst->crc)) {
-
-                *(inst->magic1) = extract_bits(data, 0, 6); //appears to be the function code sent to the encoder
-                *(inst->referenced) = !extract_bits(data, 6, 1); //becomes 0 once an index pulse is seen
-                *(inst->magic2) = extract_bits(data, 7, 10); //unknown
-                *(inst->slowclock)= extract_bits(data, 16, -8); //counts up every 1/5 of a second
-                *(inst->fastclock) = extract_bits(data, 24, 26); //appears to be random data that changes every request
-                *(inst->magic3) = extract_bits(data, 50, 6); //unknown
-                abs_counter =  extract_bits(data, 56, -counter_width); //absolute turn counter 
-                *(inst->input_z) =  extract_bits(data, 80, 1);
-                *(inst->hall_a) =  extract_bits(data, 81, 1);
-                *(inst->hall_b) = extract_bits(data, 82, 1);
-                *(inst->hall_c) = extract_bits(data, 83, 1);
-                *(inst->reference_offset) = extract_bits(data, 84, 9);
-                *(inst->turns) = extract_bits(data, 93, -3);  //8 bit full turn counter
-                
-
-                //encoder count to turn value chart
-                //2097152      7 0 1        
-                //4194304        0 1 2
-                //6291456          1 2 3
-                //8388608            2 3 4
-                //10485760             3 4 5
-                //12582912               4 5 6
-                //14680064                 5 6 7
-                //16777216                   6 7 0
-
-                if( (*(inst->turns) == 0 || *(inst->turns) == 7) && inst->prev_abs_counter > counter_center && abs_counter < counter_center) {
-                    //positive rollover
-                    counter_rollover = wrap_counts; 
-                } else if( (*(inst->turns) == 0 || *(inst->turns)==7) && inst->prev_abs_counter < counter_center && abs_counter > counter_center) {
-                    //negative rollover
-                    counter_rollover = -wrap_counts;
-                }
-
-                inst->full_raw_counts += abs_counter - inst->prev_abs_counter + counter_rollover;
-                inst->prev_abs_counter = abs_counter;
-                *(inst->rawcounts) = inst->full_raw_counts;
-
-                direction = prev_full_raw_counts < inst->full_raw_counts ? 1 : -1;
-
-                if(!prev_referenced && *(inst->referenced)) {
-                    //when the encoder first powers on it does not know the relative location of the index point.
-                    //the first time that it passes the index point a flag and an offset value is recorded in the encoders memory.
-                    //The offset is the number of counts passed before the encoder packet was transmitted
-                    //depending upon the direction of travel we must add or subtract that offset to determine
-                    //the absolute reference position.
-                    *(inst->reference) = (abs_counter - (direction * *(inst->reference_offset))) % ppr;
-                }
-                        
-               
-            
-                if(*(inst->index_enable) && *(inst->referenced)) {
-                    //simulate an incremental encoder's behavior
-                    //set the 0 point to the index that the encoder is moving towards
-                    //it isn't necessary to wait for the index pulse to occur because the index position
-                    //is recorded when the encoder is referenced
-                    inst->index_offset = inst->full_raw_counts + (direction >= 0 ? ppr : 0) - *(inst->reference);
-                    *(inst->index_enable) = 0;
-                }
-                
-                if(*(inst->scale) == 0.0) {
-                    HM2_ERR("scale of 0.0 is invalid. setting to 1.0\n");
-                    *(inst->scale) = 1.0;
-                }
-
-                *(inst->position) = (hal_float_t)(inst->full_raw_counts - inst->index_offset) / *(inst->scale);
-
-
-            } else {
-                *(inst->error) = 1;
-            }
-        } else {
-            *(inst->error) = 1;
-        }
-    }
+        hm2_sigma5abs_process_rx(hm2, inst, i, fPeriods);
+    }        
 }
 
 

@@ -1159,36 +1159,14 @@ typedef struct {
 
 typedef struct {
 
+    //debug pins    
     hal_u32_t* magic1;
     hal_u32_t* magic2;
     hal_u32_t* magic3;
-
-    hal_s32_t* rawcounts; 
-    hal_bit_t* referenced; //true when referenced
-    hal_s32_t* reference;   //absolute count position of index from 0 to ppr
-    hal_u32_t* reference_offset; //offset position from encoder
-
-    hal_bit_t* index_enable;      //encoder index pin
-    hal_float_t* position; //encoder position in scaled units
-    hal_float_t* scale; //encoder position scale
-    hal_float_t* velocity; //estimated velocity in units per second
-
     hal_u32_t* slowclock;
     hal_u32_t* fastclock;
-    hal_bit_t* input_z;
-    hal_bit_t* hall_a;
-    hal_bit_t* hall_b;
-    hal_bit_t* hall_c;
     hal_u32_t* turns;
     hal_u32_t* crc;
-
-    hal_bit_t* reset;
-    hal_bit_t* error;
-    
-
-    hal_u32_t* bitrate;
-    hal_bit_t* enable;
-    hal_bit_t* transmit;
     hal_u32_t* tx_count;
     hal_u32_t* tx0;
     hal_u32_t* tx1;
@@ -1198,13 +1176,44 @@ typedef struct {
     hal_u32_t* rx2;
     hal_u32_t* rx3;
     hal_u32_t* rx4;
-    hal_u32_t* status;
     hal_u32_t* debug;
+    hal_u32_t* reference_offset;
+    hal_u32_t* reference_angle;
+    hal_s32_t* rotor_count;
+ 
+    hal_u32_t*   bitrate; 
+    hal_bit_t*   transmit;
+    hal_bit_t*   enable;
+    hal_s32_t*   rawcounts; 
+    hal_bit_t*   referenced; //true when referenced
+    hal_bit_t*   index_enable;      //encoder index pin
+    hal_float_t* position; //encoder position in scaled units
+    hal_float_t* scale; //encoder position scale
+    hal_float_t* velocity; //estimated velocity in units per second
+    hal_bit_t*   z;
+    hal_bit_t*   u;
+    hal_bit_t*   v;
+    hal_bit_t*   w;
 
-    
-    rtapi_s64 prev_abs_counter; //previous absolute count from encoder
-    rtapi_s64 full_raw_counts;  //full position count
-    rtapi_s64 index_offset;           //offset for indexing
+    hal_u32_t*   ppr;
+    hal_u32_t*   pole_count;    
+    hal_float_t* rotor_offset;
+    hal_float_t* rotor_angle;
+    hal_u32_t*   status;
+
+
+    hal_bit_t*   reset;
+    hal_bit_t*   fault;
+    hal_u32_t*   fault_count;
+    hal_u32_t*   fault_inc;
+    hal_u32_t*   fault_dec;
+    hal_u32_t*   fault_lim;
+
+    hal_bit_t first_cycle;  //goes true when encoder starts running
+    hal_bit_t prev_reset; 
+    rtapi_s64 prev_encoder_count;  //previous count returned from encoder
+    rtapi_s64 rel_count;      //full relative position count
+    rtapi_s64 index_offset;        //offset of simulated index position
 
 } hm2_sigma5abs_instance_t;
 
@@ -1259,6 +1268,7 @@ typedef struct {
 
     rtapi_u32 debug_addr;
     rtapi_u32* debug_reg;
+
 } hm2_sigma5abs_t;
 	
 
@@ -1760,10 +1770,8 @@ int hm2_pktuart_read(char *name, unsigned char data[],  rtapi_u8 *num_frames, rt
 //
 int hm2_sigma5abs_parse_md(hostmot2_t* hm2, int md_index);
 void hm2_sigma5abs_cleanup(hostmot2_t* hm2);
-void hm2_sigma5abs_write(hostmot2_t* hm2);
-void hm2_sigma5abs_force_write(hostmot2_t* hm2);
-void hm2_simga5abs_prepare_tram_write(hostmot2_t* hm2);
-void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2);
+void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2);
+void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long period);
 void hm2_sigma5abs_print_module(hostmot2_t* hm2);
 
 
