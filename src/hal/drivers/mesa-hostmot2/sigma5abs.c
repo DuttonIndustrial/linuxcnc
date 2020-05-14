@@ -740,6 +740,11 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
         return;
     }
 
+    if(prev_referenced && !*inst->referenced) {
+        *inst->fault = 1;
+        HM2_ERR("%s reference was lost. Rehoming necessary.\n");
+    } 
+
     encoder_angle = encoder_count % *(inst->ppr);
 
     //encoder count to turn value chart
