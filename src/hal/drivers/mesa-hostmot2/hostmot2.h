@@ -1209,7 +1209,7 @@ typedef struct {
     hal_u32_t*   fault_dec;
     hal_u32_t*   fault_lim;
 
-    hal_bit_t first_cycle;  //goes true when encoder starts running
+    hal_bit_t startup;   //true after a reset or first startup
     hal_bit_t prev_reset; 
     rtapi_s64 prev_encoder_count;  //previous count returned from encoder
     rtapi_s64 rel_count;      //full relative position count

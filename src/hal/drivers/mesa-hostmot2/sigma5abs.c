@@ -52,7 +52,34 @@ int convert_to_hdlc(const char* data,
                     int hdlc_max_bytes,
                     char sync,
   */                  
-                    
+
+ 
+int crc(const char* data, int data_length) {
+    //CRC-16/GENIBUS Check of 123456789 is 0xD64E
+
+    unsigned short generator = 0x1021;
+    unsigned short crc = 0xFFFF;
+    unsigned short next = 0;
+
+    for(int index = 0; index < data_length; index++) {
+        next = data[index];
+        next = next << 8;
+
+        crc ^= next;
+
+        for(int i = 0; i < 8; i++) {
+            if((crc & 0x8000) != 0)
+            {
+                crc = (crc << 1) ^ generator;
+            } else {
+                crc = crc << 1;
+            }
+        }
+    }
+
+    return (crc ^ 0xFFFF);
+}
+                   
 
 
 //searches the packed binary data hdlc for a valid hdlc encoded message
@@ -139,32 +166,6 @@ int parse_hdlc(const char* hdlc,
 
 
 
-int crc(const char* data, int data_length) {
-    //CRC-16/GENIBUS Check of 123456789 is 0xD64E
-
-    unsigned short generator = 0x1021;
-    unsigned short crc = 0xFFFF;
-    unsigned short next = 0;
-
-    for(int index = 0; index < data_length; index++) {
-        next = data[index];
-        next = next << 8;
-
-        crc ^= next;
-
-        for(int i = 0; i < 8; i++) {
-            if((crc & 0x8000) != 0)
-            {
-                crc = (crc << 1) ^ generator;
-            } else {
-                crc = crc << 1;
-            }
-        }
-    }
-
-    return (crc ^ 0xFFFF);
-}
-
 
 
 void printdata(const char* data, int size) {
@@ -209,76 +210,225 @@ unsigned int extract_bits(const char* data, unsigned int bit_offset, int bit_len
     return reg;
 }
 
+//length of data must be 14 bytes
+void decode_encoder_packet(char* data, 
+                          hal_u32_t* magic1, 
+                          hal_bit_t* referenced, 
+                          hal_u32_t* magic2, 
+                          hal_u32_t* slowclock, 
+                          hal_u32_t* fastclock,
+                          hal_u32_t* magic3,
+                          hal_u32_t* encoder_count,
+                          hal_bit_t* z,
+                          hal_bit_t* u,
+                          hal_bit_t* v,
+                          hal_bit_t* w,
+                          hal_u32_t* ref_offset,
+                          hal_u32_t* turns,
+                          hal_u32_t* crc)
+{
+    *magic1 = extract_bits(data, 0, 6); //appears to be the function code sent to the encoder
+    *referenced = (0 == extract_bits(data, 6, 1)); //becomes 0 once first index pulse is seen
+    *magic2 = extract_bits(data, 7, 10); //unknown
+    *slowclock = extract_bits(data, 16, -8); //counts up every 1/5 of a second
+    *fastclock = extract_bits(data, 24, 26); //appears to be random data that changes every request
+    *magic3 = extract_bits(data, 50, 6); //unknown
+    *encoder_count =  extract_bits(data, 56, -24); //absolute turn counter
+    *z =  extract_bits(data, 80, 1); //index 
+    *u =  extract_bits(data, 81,1);  //hall u
+    *v = extract_bits(data, 82, 1);  //hall v
+    *w = extract_bits(data, 83, 1);  //hall w
+    *ref_offset = extract_bits(data, 84, 9); //reference offset 
+    *turns = extract_bits(data, 93, -3);  //8 bit full turn counter
+    *crc = extract_bits(data, 96, 16);
+}
+
+
+
+//converts hall signals to rotor position
+//pos can be 0 1 or 2 to compute low edge, middle or high edge
+hal_s32_t hallRotorCount(hal_u32_t rotor_pulses, hal_u32_t edge, hal_bit_t U, hal_bit_t V, hal_bit_t W) { 
+    hal_u32_t base = 0;
     
-
-
-
-int definePins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
-    int ret;
-    char name[HAL_NAME_LEN];
-    pin_creation_data_t pdata[] = {
-        { "debug.magic1",        HAL_U32, HAL_OUT, (void**)&(inst->magic1)},
-        { "debug.magic2",        HAL_U32, HAL_OUT, (void**)&(inst->magic2)},
-        { "debug.magic3",        HAL_U32, HAL_OUT, (void**)&(inst->magic3)},
-        { "debug.slowclock",    HAL_U32, HAL_OUT, (void**)&(inst->slowclock)},
-        { "debug.fastclock",    HAL_U32, HAL_OUT, (void**)&(inst->fastclock)},
-        { "debug.turns",        HAL_U32, HAL_OUT, (void**)&(inst->turns)},
-        { "debug.crc",          HAL_U32, HAL_OUT, (void**)&(inst->crc)},
-        { "debug.tx-count", HAL_U32, HAL_IN, (void**)&(inst->tx_count)},
-        { "debug.tx0",      HAL_U32, HAL_IN, (void**)&(inst->tx0)},
-        { "debug.tx1",      HAL_U32, HAL_IN, (void**)&(inst->tx1)},
-        { "debug.rx-count", HAL_U32, HAL_OUT, (void**)&(inst->rx_count)},
-        { "debug.rx0",      HAL_U32, HAL_OUT, (void**)&(inst->rx0)},
-        { "debug.rx1",      HAL_U32, HAL_OUT, (void**)&(inst->rx1)},
-        { "debug.rx2",      HAL_U32, HAL_OUT, (void**)&(inst->rx2)},
-        { "debug.rx3",      HAL_U32, HAL_OUT, (void**)&(inst->rx3)},
-        { "debug.rx4",      HAL_U32, HAL_OUT, (void**)&(inst->rx4)},
-        { "debug.debug",        HAL_U32, HAL_OUT, (void**)&(inst->debug)},
-        { "debug.reference-offset", HAL_U32, HAL_OUT, (void**)&(inst->reference_offset)},
-        { "debug.reference-angle", HAL_U32, HAL_OUT, (void**)&(inst->reference_angle)},
-        { "debug.rotor-count",  HAL_U32, HAL_OUT, (void**)&(inst->rotor_count)},
-        { "bitrate",  HAL_U32, HAL_IN, (void**)&(inst->bitrate)},
-        { "transmit", HAL_BIT, HAL_IN, (void**)&(inst->transmit)},
-        { "enable", HAL_BIT, HAL_IN, (void**)&(inst->enable)},
-        { "status",   HAL_U32, HAL_OUT, (void**)&(inst->status)},
-        { "reset",        HAL_BIT, HAL_IN, (void**)&(inst->reset)},
-        { "fault",        HAL_BIT, HAL_OUT, (void**)&(inst->fault)},
-        { "fault-count",  HAL_U32, HAL_OUT, (void**)&(inst->fault_count)},
-        { "fault-inc",    HAL_U32, HAL_IN, (void**)&(inst->fault_inc)},
-        { "fault-dec",    HAL_U32, HAL_IN, (void**)&(inst->fault_dec)},
-        { "fault-lim",    HAL_U32, HAL_IN, (void**)&(inst->fault_lim)},
-        { "rawcounts",    HAL_S32, HAL_OUT, (void**)&(inst->rawcounts)},
-        { "index-enable", HAL_BIT, HAL_IO,  (void**)&(inst->index_enable)},
-        { "velocity",     HAL_FLOAT, HAL_OUT, (void**)&(inst->velocity)},
-        { "position",     HAL_FLOAT, HAL_OUT, (void**)&(inst->position)},
-        { "scale",        HAL_FLOAT, HAL_IN, (void**)&(inst->scale)},
-        { "referenced",   HAL_BIT, HAL_OUT, (void**)&(inst->referenced)},
-        { "z",            HAL_BIT, HAL_OUT, (void**)&(inst->z)},
-        { "u",            HAL_BIT, HAL_OUT, (void**)&(inst->u)},
-        { "v",            HAL_BIT, HAL_OUT, (void**)&(inst->v)},
-        { "w",            HAL_BIT, HAL_OUT, (void**)&(inst->w)},
-        { "rotor-offset",  HAL_FLOAT, HAL_IN, (void**)&(inst->rotor_offset)},
-        { "ppr",          HAL_U32, HAL_IN, (void**)&(inst->ppr)},
-        { "pole-count",   HAL_U32, HAL_IN, (void**)&(inst->pole_count)},
-        { "rotor-angle",  HAL_FLOAT, HAL_OUT, (void**)&(inst->rotor_angle)},
-
-       };
-
-        for(int index = 0; index < sizeof(pdata)/sizeof(pin_creation_data_t); index++) {
-            if(snprintf(name, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, id, pdata[index].name) == HAL_NAME_LEN) {
-                HM2_ERR("sigma5abs: Formatted pin name too long. %s\n", pdata[index].name);
-                return -1;
-            }
-
-            ret = hal_pin_new(name, pdata[index].type, pdata[index].dir, pdata[index].addr, hm2->llio->comp_id);
-         	if (ret < 0) {
-                HM2_ERR("error adding pin %s. error code %d\n", name, ret);
-                return -1;
-            }
-        }
-    
-        return 0;
+    switch((U << 2) + (V << 1) + W) {
+        case 5:   //101 = 0/12 - 2/12 
+            base = 0;
+            break;
+        case 1: //001 = 2/12 - 4/12
+            base = 2;
+            break;
+        case 3: //011 = 4/12 - 6/12
+            base = 4;
+            break;
+        case 2: //010 = 6/12 - 8/12
+            base = 6;
+            break;
+        case 6: //110 = 8/12 - 10/12
+            base = 8;
+            break;
+        case 4: //100 = 10/12 - 12/12
+            base = 12;
+            break;
     }
+
+    return (rotor_pulses * (base + edge)) / 12;
+}
+
+
+int defineHalPin(hostmot2_t *hm2, int inst, const char* name, hal_type_t type, hal_pin_dir_t dir, void** addr) {
+    int ret;
+    char pinname[HAL_NAME_LEN];
+
+    if(rtapi_snprintf(pinname, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
+        HM2_ERR("sigma5abs: Formatted pin name too long. %s.sigma5abs.%02d.%s\n", hm2->llio->name, inst, name);
+        return -1;
+    }
+
+    ret = hal_pin_new(pinname, type, dir, addr, hm2->llio->comp_id);
+    if (ret < 0) {
+        HM2_ERR("error adding pin %s. error code %d\n", name, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int defineHalPins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
+    if(0 > defineHalPin(hm2, id, "debug.magic1", HAL_U32, HAL_OUT, (void**)&(inst->magic1))) 
+    { return -1; }
+
+    if(0 > defineHalPin(hm2, id, "debug.magic2", HAL_U32, HAL_OUT, (void**)&(inst->magic2))) 
+    { return -1; }
+    
+    if(0 > defineHalPin(hm2, id, "debug.magic3", HAL_U32, HAL_OUT, (void**)&(inst->magic3))) 
+    { return -1; }
+
+    if(0 > defineHalPin(hm2, id, "debug.slowclock",        HAL_U32, HAL_OUT, (void**)&(inst->slowclock)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.fastclock",        HAL_U32, HAL_OUT, (void**)&(inst->fastclock)))
+    { return -1; }
+     
+    if(0 > defineHalPin(hm2, id, "debug.turns",            HAL_U32, HAL_OUT, (void**)&(inst->turns)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.crc",              HAL_U32, HAL_OUT, (void**)&(inst->crc)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.tx-count",         HAL_U32, HAL_IN, (void**)&(inst->tx_count)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.tx0",              HAL_U32, HAL_IN, (void**)&(inst->tx0)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.tx1",              HAL_U32, HAL_IN, (void**)&(inst->tx1)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rx-count",         HAL_U32, HAL_OUT, (void**)&(inst->rx_count)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rx0",              HAL_U32, HAL_OUT, (void**)&(inst->rx0)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rx1",              HAL_U32, HAL_OUT, (void**)&(inst->rx1)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rx2",              HAL_U32, HAL_OUT, (void**)&(inst->rx2)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rx3",              HAL_U32, HAL_OUT, (void**)&(inst->rx3)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rx4",              HAL_U32, HAL_OUT, (void**)&(inst->rx4)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.debug",            HAL_U32, HAL_OUT, (void**)&(inst->debug)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.reference-offset", HAL_U32, HAL_OUT, (void**)&(inst->reference_offset)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.reference-angle", HAL_U32, HAL_OUT, (void**)&(inst->reference_angle)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "debug.rotor-count",  HAL_U32, HAL_OUT, (void**)&(inst->rotor_count)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "bitrate",  HAL_U32, HAL_IN, (void**)&(inst->bitrate)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "transmit", HAL_BIT, HAL_IN, (void**)&(inst->transmit)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "enable", HAL_BIT, HAL_IN, (void**)&(inst->enable)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "status",   HAL_U32, HAL_OUT, (void**)&(inst->status)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "reset",        HAL_BIT, HAL_IN, (void**)&(inst->reset)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "fault",        HAL_BIT, HAL_OUT, (void**)&(inst->fault)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "fault-count",  HAL_U32, HAL_OUT, (void**)&(inst->fault_count)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "fault-inc",    HAL_U32, HAL_IN, (void**)&(inst->fault_inc)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "fault-dec",    HAL_U32, HAL_IN, (void**)&(inst->fault_dec)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "fault-lim",    HAL_U32, HAL_IN, (void**)&(inst->fault_lim)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "rawcounts",    HAL_S32, HAL_OUT, (void**)&(inst->rawcounts)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "index-enable", HAL_BIT, HAL_IO,  (void**)&(inst->index_enable)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "velocity",     HAL_FLOAT, HAL_OUT, (void**)&(inst->velocity)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "position",     HAL_FLOAT, HAL_OUT, (void**)&(inst->position)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "scale",        HAL_FLOAT, HAL_IN, (void**)&(inst->scale)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "referenced",   HAL_BIT, HAL_OUT, (void**)&(inst->referenced)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "z",            HAL_BIT, HAL_OUT, (void**)&(inst->z)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "u",            HAL_BIT, HAL_OUT, (void**)&(inst->u)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "v",            HAL_BIT, HAL_OUT, (void**)&(inst->v)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "w",            HAL_BIT, HAL_OUT, (void**)&(inst->w)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "rotor-offset",  HAL_FLOAT, HAL_IN, (void**)&(inst->rotor_offset)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "ppr",          HAL_U32, HAL_IN, (void**)&(inst->ppr)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "pole-count",   HAL_U32, HAL_IN, (void**)&(inst->pole_count)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "rotor-angle",  HAL_FLOAT, HAL_OUT, (void**)&(inst->rotor_angle)))
+    { return -1; }
+
+    return 0;
+}
 	
 
         
@@ -293,7 +443,7 @@ int hm2_sigma5abs_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
         { "timer",    false, 2,  &sg5->timer_addr,    &sg5->timer_reg },
         { "tx_count", false, 3,  &sg5->tx_count_addr, &sg5->tx_count_reg },
         { "tx0",      false, 4,  &sg5->tx0_addr,      &sg5->tx0_reg },
-        { "tx1",      false, 5,  &sg5->tx1_addr,       &sg5->tx1_reg },
+        { "tx1",      false, 5,  &sg5->tx1_addr,      &sg5->tx1_reg },
 
         //control register must be written last
         { "control",  false, 0,  &sg5->control_addr,  &sg5->control_reg },
@@ -398,10 +548,11 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         return r;
     }
 
+
     for (i = 0 ; i < hm2->sigma5abs.num_instances ; i++){
         hm2_sigma5abs_instance_t *inst = &hm2->sigma5abs.instances[i];
 
-        if(definePins(hm2, inst, i) < 0) {
+        if(defineHalPins(hm2, inst, i) < 0) {
             return -1;
         }
     
@@ -409,7 +560,7 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         inst->rel_count = 0;
         inst->index_offset = 0;
         inst->prev_encoder_count = 0;
-        inst->first_cycle= 1;
+        inst->startup = 1;
        
         *(inst->rawcounts) = 0;
         *(inst->referenced) = 0;
@@ -427,8 +578,8 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         *(inst->turns) = 0;
         *(inst->crc) = 0;
         *(inst->reset) = 0;
-        *(inst->fault) = 0;
-        *(inst->fault_count) = 0;
+        *(inst->fault) = 1;
+        *(inst->fault_count) = 100;
         *(inst->fault_inc) = 10;
         *(inst->fault_dec) = 1;
         *(inst->fault_lim) = 200;
@@ -467,12 +618,7 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
         hm2->sigma5abs.tx_count_reg[i] = *inst->tx_count;
         hm2->sigma5abs.tx0_reg[i] = *inst->tx0;
         hm2->sigma5abs.tx1_reg[i] = *inst->tx1;
-
-        if(!*(inst->fault) && *(inst->enable)) {
-            hm2->sigma5abs.control_reg[i] |= 0x2;
-        } else {
-            hm2->sigma5abs.control_reg[i] &= ~0x2;
-        }
+        hm2->sigma5abs.control_reg[i] |= 0x2;
 
         if(*inst->transmit) {
             //alternate transmit bit every cycle to trigger manchester trx
@@ -483,14 +629,12 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
 
 
 
-void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, int i, hal_float_t fPeriods) {
+
+void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, int i, hal_float_t fPeriods, const char* prefix) {
     char reg[20] = {0};  //raw data passed from manchester trx with an hdlc message encoded in it
     char data[14] = {0}; //actual encoder data parsed from reg
    
     hal_bit_t prev_referenced = *(inst->referenced);
-
-    hal_u32_t hall = 0;
-    hal_u32_t hall_position = 0;
 
     int counter_bits = 24;
     rtapi_s64 prev_rel_count = inst->rel_count;
@@ -499,8 +643,8 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     rtapi_s64 dCounts = 0;
     
 
-    rtapi_s64 encoder_count = 0;
-    rtapi_s64 encoder_angle = 0;
+    hal_u32_t encoder_count = 0;
+    hal_u32_t encoder_angle = 0;
     rtapi_s64 counter_rollover = 0;
     rtapi_s64 direction = 0;
 
@@ -509,22 +653,8 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     rtapi_s64 rotor_pulses = *(inst->ppr) / (*inst->pole_count / 2);
 
 
-    //reset on rising edge of reset pin
-    if(!inst->prev_reset && *(inst->reset) && *(inst->fault)) {
-        *inst->fault = 0;
-        *inst->fault_count = 0;
-    }
-
-    inst->prev_reset = *(inst->reset);
-
-
-    if(*(inst->fault)) {
-        return;
-    }
-
-
-    if(fabs(*(inst->rotor_offset)) > 1.0) {
-        HM2_ERR("rotor-offset is invalid. Must be between -1.0 and 1.0 .\n");
+    if(fabs(*inst->rotor_offset) > 1.0) {
+        HM2_ERR("%s.rotor-offset is invalid. Must be between -1.0 and 1.0 .\n", prefix);
         *(inst->fault) = 1;
         return;
     }
@@ -533,18 +663,39 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
 
     //scaled position value for motion controller 
     if(*(inst->scale) == 0.0) {
-        HM2_ERR("scale of 0.0 is invalid.\n");
+        HM2_ERR("%s.scale of 0.0 is invalid.\n", prefix);
         *(inst->fault) = 1;
         return;
     }
 
-
-    if(*(inst->fault_count) > *(inst->fault_lim)) {
-        *inst->fault = 1;
-        HM2_ERR("Too many encoder communication faults.\n");
-        return;
+    //reset on rising edge of reset pin
+    if(!inst->prev_reset && *(inst->reset) && *(inst->fault)) {
+        HM2_ERR("%s.reset\n", prefix);
+        inst->startup = 1;
     }
 
+    if(inst->startup) {
+        //during startup we 
+        //HM2_ERR("startup %s fault_count %d\n", prefix, *inst->fault_count);
+
+        if(*inst->fault_count == 0) {
+            inst->startup = 0;
+            *inst->fault = 0;
+        } else if(*inst->fault_count > *inst->fault_lim) {
+            *inst->fault_count = *inst->fault_lim;
+        }
+
+    } else {
+        if(*inst->fault) {
+            return;
+        } else if (*inst->fault_count > *inst->fault_lim) {
+            *inst->fault = 1;
+            HM2_ERR("%s Too many encoder communication faults.\n", prefix);
+            return;
+        }
+    }    
+
+ 
     *(inst->debug) = (hal_u32_t)hm2->sigma5abs.debug_reg[i];
     *(inst->status) = (hal_u32_t)hm2->sigma5abs.status_reg[i];
     *(inst->rx_count) = (hal_u32_t)hm2->sigma5abs.rx_count_reg[i];
@@ -561,185 +712,139 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     *(hal_u32_t*)(reg+(4*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx4_reg[i]);
 
 
-    if(parse_hdlc(reg, 20, data, 14) == 112) {
-        //check crc
-        *(inst->crc) = extract_bits(data, 96, 16);
+    if(parse_hdlc(reg, 20, data, 14) != 112) {
+            *(inst->fault_count) += *(inst->fault_inc); //no hdlc data
+//            HM2_ERR("%s, BAD HDLC!\n", prefix);
+        return;
+    }
 
-        if(crc(data, 12) == *(inst->crc)) {
+    decode_encoder_packet(data,
+                          inst->magic1,
+                          inst->referenced,
+                          inst->magic2,
+                          inst->slowclock,
+                          inst->fastclock,
+                          inst->magic3,
+                          &encoder_count,
+                          inst->z,    
+                          inst->u,
+                          inst->v,
+                          inst->w,
+                          inst->reference_offset,
+                          inst->turns,
+                          inst->crc);
+  
+    if(crc(data, 12) != *inst->crc) {                                   
+        *(inst->fault_count) += *(inst->fault_inc); //bad crc
+        HM2_ERR("%s BAD CRC!\n", prefix);
+        return;
+    }
 
-            *(inst->magic1) = extract_bits(data, 0, 6); //appears to be the function code sent to the encoder
-            *(inst->referenced) = (0 == extract_bits(data, 6, 1)); //becomes 0 once first index pulse is seen
+    encoder_angle = encoder_count % *(inst->ppr);
 
-            *(inst->magic2) = extract_bits(data, 7, 10); //unknown
-            *(inst->slowclock)= extract_bits(data, 16, -8); //counts up every 1/5 of a second
-            *(inst->fastclock) = extract_bits(data, 24, 26); //appears to be random data that changes every request
-            *(inst->magic3) = extract_bits(data, 50, 6); //unknown
+    //encoder count to turn value chart
+    //2097152      7 0 1        
+    //4194304        0 1 2
+    //6291456          1 2 3
+    //8388608            2 3 4
+    //10485760             3 4 5
+    //12582912               4 5 6
+    //14680064                 5 6 7
+    //16777216                   6 7 0
+    //can we eliminate this?
+    if(*(inst->turns) == 0 || *(inst->turns) == 7) {
+        if(inst->prev_encoder_count > counter_center && encoder_count < counter_center) {
+            //positive rollover
+            counter_rollover = wrap_counts; 
+        } else if(inst->prev_encoder_count < counter_center && encoder_count > counter_center) {
+            //negative_rollover
+            counter_rollover = -wrap_counts;
+        }
+    }
 
-            encoder_count =  extract_bits(data, 56, -counter_bits); //absolute turn counter
-            encoder_angle = encoder_count % *(inst->ppr);
+    dCounts = encoder_count - inst->prev_encoder_count + counter_rollover;
+    inst->rel_count += dCounts;
+    inst->prev_encoder_count = encoder_count;
+    *(inst->rawcounts) = inst->rel_count;
 
-            *(inst->z) =  extract_bits(data, 80, 1);
-             
-            hall = extract_bits(data, 81, 3);
-            *(inst->u) =  extract_bits(data, 81,1);
-            *(inst->v) = extract_bits(data, 82, 1);
-            *(inst->w) = extract_bits(data, 83, 1);
-             
-            *(inst->reference_offset) = extract_bits(data, 84, 9);
-            *(inst->turns) = extract_bits(data, 93, -3);  //8 bit full turn counter
 
-            //encoder count to turn value chart
-            //2097152      7 0 1        
-            //4194304        0 1 2
-            //6291456          1 2 3
-            //8388608            2 3 4
-            //10485760             3 4 5
-            //12582912               4 5 6
-            //14680064                 5 6 7
-            //16777216                   6 7 0
-            //can we eliminate this?
-            if(*(inst->turns) == 0 || *(inst->turns) == 7) {
-                if(inst->prev_encoder_count > counter_center && encoder_count < counter_center) {
-                    //positive rollover
-                    counter_rollover = wrap_counts; 
-                } else if(inst->prev_encoder_count < counter_center && encoder_count > counter_center) {
-                    //negative_rollover
-                    counter_rollover = -wrap_counts;
-                }
+    //direction of travel since last update
+    direction = prev_rel_count <= inst->rel_count ? 1 : -1;
+
+
+    /*
+      when the encoder first powers on it does not know where the index point is.
+      the first time that the index is passed a flag and an offset value is recorded in the encoders memory.
+      The offset is the number of counts passed before the encoder packet was transmitted
+      depending upon the direction of travel we must add or subtract that offset to determine
+      the absolute reference position.
+    */
+    if(!prev_referenced  && *(inst->referenced)) {
+       *(inst->reference_angle) = (encoder_angle
+                                   - (direction * *(inst->reference_offset)) 
+                                   + *(inst->ppr) //avoid negative remainder
+                                                ) % *(inst->ppr);
+    }
+                    
+        
+
+    /*
+        simulate an incremental encoder's behavior
+        the index position is already known so we set the 
+        0 point to the next index that the rotor is moving towards            
+    */  
+    if(*(inst->index_enable) && *(inst->referenced)) {
+        if(direction > 0) {
+            if(encoder_angle < *(inst->reference_angle)) {
+                inst->index_offset = inst->rel_count + *(inst->reference_angle) - encoder_angle;
+            } else {
+                inst->index_offset = inst->rel_count + *(inst->ppr) - encoder_angle + *(inst->reference_angle);
             }
-
-            dCounts = encoder_count - inst->prev_encoder_count + counter_rollover;
-            inst->rel_count += dCounts;
-            inst->prev_encoder_count = encoder_count;
-            *(inst->rawcounts) = inst->rel_count;
-
- 
-
-
-
-            //direction of travel since last update
-            direction = prev_rel_count <= inst->rel_count ? 1 : -1;
-
-
-
-            /*
-              when the encoder first powers on it does not know where the index point is.
-              the first time that the index is passed a flag and an offset value is recorded in the encoders memory.
-              The offset is the number of counts passed before the encoder packet was transmitted
-              depending upon the direction of travel we must add or subtract that offset to determine
-              the absolute reference position.
-            */
-            if(!prev_referenced  && *(inst->referenced)) {
-               *(inst->reference_angle) = (encoder_angle
-                                           - (direction * *(inst->reference_offset)) 
-                                           + *(inst->ppr) //avoid negative remainder
-                                                        ) % *(inst->ppr);
+        } else {
+            if(encoder_angle < *(inst->reference_angle)) {
+                inst->index_offset = inst->rel_count - *(inst->ppr) - *(inst->reference_angle) - encoder_angle;
+            } else {
+                inst->index_offset = inst->rel_count - encoder_angle - *(inst->reference_angle);
             }
-                        
-            
-   
-            /*
-                simulate an incremental encoder's behavior
-                the index position is already known so we set the 
-                0 point to the next index that the rotor is moving towards            
-            */  
-            if(*(inst->index_enable) && *(inst->referenced)) {
-                if(direction > 0) {
-                    if(encoder_angle < *(inst->reference_angle)) {
-                        inst->index_offset = inst->rel_count + *(inst->reference_angle) - encoder_angle;
-                    } else {
-                        inst->index_offset = inst->rel_count + *(inst->ppr) - encoder_angle + *(inst->reference_angle);
-                    }
-                } else {
-                    if(encoder_angle < *(inst->reference_angle)) {
-                        inst->index_offset = inst->rel_count - *(inst->ppr) - *(inst->reference_angle) - encoder_angle;
-                    } else {
-                        inst->index_offset = inst->rel_count - encoder_angle - *(inst->reference_angle);
-                    }
-                }
-                  
-                *(inst->index_enable) = 0;
-            }
-            
+        }
+          
+        *(inst->index_enable) = 0;
+    }
+        
 
-            
-            *(inst->position) = ((hal_float_t)(inst->rel_count - inst->index_offset)) / *(inst->scale);
+        
+    *(inst->position) = ((hal_float_t)(inst->rel_count - inst->index_offset)) / *(inst->scale);
 
-            *(inst->velocity) = (dCounts / *inst->scale) / fPeriods;
-
-
-
+    *(inst->velocity) = (dCounts / *inst->scale) / fPeriods;
 
               
 
-            /*
-                motor commutation
-                rotor_angle
-            */
-            if(*(inst->referenced)) {
-                //the rotor angle is now known exactly because we
-                //comm_offset = - *(inst->rotor_offset) - *(inst->reference_angle);
-                *(inst->rotor_count) = (*(inst->ppr)        //avoid negative remainder
-                                        + encoder_angle
-                                        - rotor_offset_counts
-                                        - *(inst->reference_angle)
-                                        ) % rotor_pulses;
-            } else {
-                //trapezoidal commutation
-                hall_position = 0;
-
-                switch(hall) {
-                    case 5:   //101 = 0/6 - 1/6 
-                        hall_position = rotor_pulses / 12;
-                        break;
-                    case 1: //001 = 1/6 - 2/6
-                        hall_position = (rotor_pulses * 3) / 12;
-                        break;
-                    case 3: //011 = 2/6 - 3/6
-                        hall_position = (rotor_pulses * 5) / 12;
-                        break;
-                    case 2: //010 = 3/6 - 4/6
-                        hall_position = (rotor_pulses * 7) / 12;
-                        break;
-                    case 6: //110 = 4/6 - 5/6
-                        hall_position = (rotor_pulses * 9) / 12;
-                        break;
-                    case 4: //100 = 5/6 - 6/6
-                        hall_position = (rotor_pulses * 11) / 12;
-                        break;
-                    default:
-                        hall_position = 0;
-                        break;
-                }
-
-                *(inst->rotor_count) = (*(inst->ppr)
-                                        + hall_position
-                                        - rotor_offset_counts
-                                        ) % rotor_pulses;
-            }
-        
-            *(inst->rotor_angle) = ((hal_float_t)*(inst->rotor_count)) / ((hal_float_t)rotor_pulses);
-
-
-            if(*(inst->fault_count) > *(inst->fault_dec)) {
-                *(inst->fault_count) -= *(inst->fault_dec);
-            } else {
-                *(inst->fault_count) = 0;
-            }
-
-            inst->first_cycle = 0;
-        } else {
-            if(!inst->first_cycle) {
-                *(inst->fault_count) += *(inst->fault_inc); //bad crc
-                //HM2_ERR("BAD CRC!\n");
-            }
-        }
+    /*
+        motor commutation
+        rotor_angle
+    */
+    if(*(inst->referenced)) {
+        //the rotor angle is now known exactly because we
+        *(inst->rotor_count) = (*(inst->ppr)        //avoid negative remainder
+                                + encoder_angle
+                                - rotor_offset_counts
+                                - *(inst->reference_angle)
+                                ) % rotor_pulses;
     } else {
-        if(!inst->first_cycle) {
-            *(inst->fault_count) += *(inst->fault_inc); //no hdlc data
-            //HM2_ERR("BAD HDLC!\n");
-        }
+        //initial rotor position, pick center of hall sensor
+        *(inst->rotor_count) = (*(inst->ppr)
+                                + hallRotorCount(rotor_pulses, 1, *(inst->u), *(inst->v), *(inst->w))
+                                - rotor_offset_counts
+                                ) % rotor_pulses;
+    }
 
+
+    *(inst->rotor_angle) = ((hal_float_t)*(inst->rotor_count)) / ((hal_float_t)rotor_pulses);
+
+    if(*(inst->fault_count) > *(inst->fault_dec)) {
+        *(inst->fault_count) -= *(inst->fault_dec);
+    } else {
+        *(inst->fault_count) = 0;
     }
 }
 
@@ -747,16 +852,16 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
 
 void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long periodns) {
 	hm2_sigma5abs_instance_t* inst;
-
-    hal_float_t fPeriods = (hal_float_t)(periodns * 1e-9);
+    char prefix[HAL_NAME_LEN];
+    
+    hal_float_t fPeriod_s = (hal_float_t)(periodns * 1e-9);
     
 
     for(int i = 0; i < hm2->sigma5abs.num_instances; i++) {
         inst = &hm2->sigma5abs.instances[i];
+        rtapi_snprintf(prefix, sizeof(prefix), "%s.sigma5abs.%02d", hm2->llio->name, i);
 
-        
-
-        hm2_sigma5abs_process_rx(hm2, inst, i, fPeriods);
+        hm2_sigma5abs_process_rx(hm2, inst, i, fPeriod_s, prefix);
     }        
 }
 
