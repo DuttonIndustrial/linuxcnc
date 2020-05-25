@@ -1220,11 +1220,12 @@ typedef struct {
     hal_float_t* velocity; //estimated velocity in units per second
 
 
-       hal_bit_t startup;   //true after a reset or first startup
+    hal_bit_t startup;   //true after a reset or first startup
     hal_bit_t prev_reset; 
     rtapi_s64 prev_encoder_count;  //previous count returned from encoder
     rtapi_s64 rel_count;      //full relative position count
     rtapi_s64 index_offset;        //offset of simulated index position
+    hal_float_t time;    //previous time a full cycle was completed
 
 } hm2_sigma5abs_instance_t;
 
@@ -1276,6 +1277,8 @@ typedef struct {
 
     rtapi_u32 status_addr;
     rtapi_u32* status_reg;
+
+    hal_float_t time;
 
 } hm2_sigma5abs_t;
 	

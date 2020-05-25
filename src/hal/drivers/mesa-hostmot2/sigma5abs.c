@@ -662,7 +662,7 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
         }
 
         
-        if(*inst->enable) {
+        if(*inst->enable && (!*inst->fault || inst->startup)) {
             hm2->sigma5abs.control_reg[i] |= 0x1;
         } else {
             hm2->sigma5abs.control_reg[i] &= ~0x1;
@@ -901,7 +901,7 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
        
     *inst->position = ((hal_float_t)(inst->rel_count - inst->index_offset)) / *inst->scale;
 
-    *inst->velocity = (dCounts / *inst->scale) / fPeriods;
+    *inst->velocity = (dCounts / *inst->scale) / (hm2->sigma5abs.time - inst->time);
 
 
               
@@ -938,6 +938,8 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     } else {
         *inst->fault_count = 0;
     }
+
+    inst->time = hm2->sigma5abs.time;
 }
 
 
@@ -947,6 +949,7 @@ void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long periodns) {
     char prefix[HAL_NAME_LEN];
     
     hal_float_t fPeriod_s = (hal_float_t)(periodns * 1e-9);
+    hm2->sigma5abs.time += fPeriod_s;
     
 
     for(int i = 0; i < hm2->sigma5abs.num_instances; i++) {
