@@ -1174,17 +1174,17 @@ typedef struct {
     hal_u32_t* rx4;
     hal_u32_t* reference_data;
     hal_u32_t* reference_angle;
+    hal_u32_t* reference_turn;
     hal_s32_t* rotor_count;
     hal_s32_t* comm_count;
     hal_u32_t* raw_rotor_count;  //raw rotor angle
     hal_u32_t* raw_angle;       //raw encoder angle (without
     hal_u32_t* raw_count;      //raw encoder count
-    hal_u32_t* rotor_ali_neg;   //negative most value of UVW=100
-    hal_u32_t* rotor_ali_pos;   //positive most value of UVW=100
-    hal_u32_t* rotor_ali_offset; //center of UVW=100 position
+    hal_u32_t* rotor_u_min;   //negative most value of UVW=100
+    hal_u32_t* rotor_u_max;   //positive most value of UVW=100
+    hal_u32_t* rotor_u_offset; //center of UVW=100 position
     hal_float_t* rotor_angle; //rotar angle before lead_angle applied
 
-    hal_u32_t* hall_count; 
 
     hal_u32_t* rotor_u_count;
 
