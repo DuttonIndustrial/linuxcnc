@@ -1166,67 +1166,73 @@ typedef struct {
     hal_u32_t* slowclock;
     hal_u32_t* fastclock;
     hal_u32_t* z_counter;
-    hal_u32_t* crc;
-    hal_u32_t* tx_count;
-    hal_u32_t* tx0;
-    hal_u32_t* tx1;
     hal_u32_t* rx_count;
     hal_u32_t* rx0;
     hal_u32_t* rx1;
     hal_u32_t* rx2;
     hal_u32_t* rx3;
     hal_u32_t* rx4;
-    hal_u32_t* debug;
-    hal_u32_t* reference_offset;
+    hal_u32_t* reference_data;
     hal_u32_t* reference_angle;
     hal_s32_t* rotor_count;
-    hal_s32_t* raw_angle;
+    hal_s32_t* comm_count;
+    hal_u32_t* raw_rotor_count;  //raw rotor angle
+    hal_u32_t* raw_angle;       //raw encoder angle (without
+    hal_u32_t* raw_count;      //raw encoder count
+    hal_u32_t* rotor_ali_neg;   //negative most value of UVW=100
+    hal_u32_t* rotor_ali_pos;   //positive most value of UVW=100
+    hal_u32_t* rotor_ali_offset; //center of UVW=100 position
+    hal_float_t* rotor_angle; //rotar angle before lead_angle applied
+
+    hal_u32_t* hall_count; 
+
+    hal_u32_t* rotor_u_count;
+
 
     //status/control
-    hal_bit_t*   busy;     
-    hal_u32_t*   bitrate; 
-    hal_s32_t*   timer;     //dpll timer
-    hal_bit_t*   enable;
-    hal_u32_t*   status;
+    hal_bit_t*   busy;          //true if encoder data transmission has not completed at time of read
+    hal_bit_t*   any_data;      //true when any data has been received     
+    hal_bit_t*   data_valid;    //true when valid data has been received
+    hal_s32_t*   timer;         //dpll timer
+    hal_bit_t*   enable;        //enable data exchange to encoder
+    hal_u32_t*   status;        //status data returned from hostmot2
     hal_bit_t*   reset;
     hal_bit_t*   fault;
     hal_u32_t*   fault_count;
     hal_u32_t*   fault_inc;
     hal_u32_t*   fault_dec;
     hal_u32_t*   fault_lim;
-    hal_u32_t*   ppr;
+    hal_u32_t*   ppr;             //pulses per revolution of encoder
+    hal_float_t* rotor_alignment; //adjusts encoder to rotor alignment
 
 
 
     //commutation
-    hal_float_t* lead_angle;
-    hal_u32_t*   pole_count;    
-    hal_float_t* rotor_alignment;
-    hal_float_t* rotor_angle;; 
-    hal_bit_t*   trapezoidal;  //only use hall sensors for commutation
+    hal_float_t* lead_angle; //commutation lead angle
+    hal_u32_t*   pole_count; //commutation pole count
+    hal_float_t* comm_angle; //commutation angle
     hal_bit_t*   u;
     hal_bit_t*   v;
     hal_bit_t*   w;
-    hal_bit_t*   z; 
      
 
 
     //position/velocity
-    hal_s32_t*   rawcounts; 
-    hal_bit_t*   referenced; //true when referenced
-    hal_bit_t*   index_enable;      //encoder index pin
-    hal_float_t* position; //encoder position in scaled units
-    hal_float_t* scale; //encoder position scale
-    hal_float_t* velocity; //estimated velocity in units per second
+    hal_bit_t*   z;             //z position hall sensor
+    hal_bit_t*   referenced;    //true when referenced
+    hal_bit_t*   index_enable;  //encoder index pin
+    hal_float_t* position;      //encoder position in scaled units
+    hal_float_t* scale;         //encoder position scale
+    hal_float_t* velocity;      //estimated velocity in units per second
 
 
-    hal_bit_t startup;   //true after a reset or first startup
-    hal_bit_t prev_reset; 
-    rtapi_s64 prev_encoder_count;  //previous count returned from encoder
-    rtapi_s64 rel_count;      //full relative position count
-    rtapi_s64 index_offset;        //offset of simulated index position
-    hal_float_t time;    //previous time a full cycle was completed
 
+    hal_bit_t startup;            //true when in startup mode
+    hal_bit_t prev_reset;         //previous reset pin value
+    hal_u32_t prev_encoder_count;     //previous rel encoder count
+    rtapi_s64 full_count;     //full relative position count
+    rtapi_s64 index_offset;       //offset of simulated index position
+    hal_float_t time;             //previous time a full cycle was completed
 } hm2_sigma5abs_instance_t;
 
 
@@ -1234,7 +1240,7 @@ typedef struct {
 
     rtapi_u32 clock_frequency;
 
-	int num_instances;
+    int num_instances;
 	hm2_sigma5abs_instance_t *instances;
 
 	rtapi_u32 instance_stride;
@@ -1242,20 +1248,8 @@ typedef struct {
 	rtapi_u32 control_addr;
 	rtapi_u32* control_reg;
 
-    rtapi_u32 bitrate_addr;
-    rtapi_u32* bitrate_reg;
-
     rtapi_u32 timer_addr;
     rtapi_u32* timer_reg;
-
-	rtapi_u32 tx_count_addr;
-	rtapi_u32* tx_count_reg;
-
-    rtapi_u32 tx0_addr;
-    rtapi_u32* tx0_reg;
-
-    rtapi_u32 tx1_addr;
-    rtapi_u32* tx1_reg;
 
 	rtapi_u32 rx_count_addr;
 	rtapi_u32* rx_count_reg;

@@ -1023,8 +1023,8 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
                 break;
 
             case HM2_GTAG_SIGMA5ABS:
-		md_accepted = hm2_sigma5abs_parse_md(hm2, md_index);
-		break;
+        		md_accepted = hm2_sigma5abs_parse_md(hm2, md_index);
+        		break;
 
             default:
                 HM2_WARN(
