@@ -53,6 +53,7 @@ unsigned int modsub(unsigned int a, unsigned int b, unsigned int mod) {
     }
 }
 
+//returns median value between a and b 
 unsigned int modmed(unsigned int a, unsigned int b, unsigned int mod) {
     unsigned int diff = modsub(a, b, mod)/2;
 
@@ -100,7 +101,7 @@ void decode_encoder_packet(char* data,
                           hal_bit_t* u,
                           hal_bit_t* v,
                           hal_bit_t* w,
-                          hal_u32_t* ref_offset,
+                          hal_u32_t* ref_data,
                           hal_u32_t* z_counter)
 {
     *magic1 = extract_bits(data, 0, 6); //appears to be the function code sent to the encoder
@@ -114,7 +115,7 @@ void decode_encoder_packet(char* data,
     *u =  extract_bits(data, 81,1);  //hall u
     *v = extract_bits(data, 82, 1);  //hall v
     *w = extract_bits(data, 83, 1);  //hall w
-    *ref_offset = extract_bits(data, 84, -9); //reference offset 
+    *ref_data = extract_bits(data, 84, -9); //reference data 
     *z_counter = extract_bits(data, 93, -3);  //8 bit z cross counter
 }
 
@@ -127,44 +128,63 @@ hal_s32_t hallRotorCount(hal_u32_t rotor_pulses, hal_u32_t edge, hal_bit_t U, ha
     hal_u32_t base = 0;
     
     switch((U << 2) + (V << 1) + W) {
-       case 0b100: //100 = 11/12 - 1/12
-            base = 11;
+       case 0b100: //100 = 2/12 - 4/12
+            base = 2;
             break;
-       case 0b101: //101 = 1/12 - 3/12 
-            base = 1;
+       case 0b101: //101 = 4/12 - 6/12 
+            base = 4;
             break;
-        case 0b001: //001 = 3/12 - 5/12
-            base = 3;
+        case 0b001: //001 = 6/12 - 8/12
+            base = 6;
             break;
-        case 0b011: //011 = 5/12 - 7/12
-            base = 5;
+        case 0b011: //011 = 8/12 - 10/12
+            base = 8;
             break;
-        case 0b010: //010 = 7/12 - 9/12
-            base = 7;
+        case 0b010: //010 = 10/12 - 12/12
+            base = 10;
             break;
-        case 0b110: //110 = 9/12 - 11/12
-            base = 9;
+        case 0b110: //110 = 12/12 - 2/12
+            base = 12;
             break;
     }
     
-    
-
     return ((rotor_pulses * ((base  + edge) % 12)) / 12) % rotor_pulses;
 }
 
 
 int defineHalPin(hostmot2_t *hm2, int inst, const char* name, hal_type_t type, hal_pin_dir_t dir, void** addr) {
     int ret;
-    char pinname[HAL_NAME_LEN];
+    char fullname[HAL_NAME_LEN];
 
-    if(rtapi_snprintf(pinname, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
+    if(rtapi_snprintf(fullname, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
         HM2_ERR("sigma5abs: Formatted pin name too long. %s.sigma5abs.%02d.%s\n", hm2->llio->name, inst, name);
         return -1;
     }
 
-    ret = hal_pin_new(pinname, type, dir, addr, hm2->llio->comp_id);
+    ret = hal_pin_new(fullname, type, dir, addr, hm2->llio->comp_id);
+
     if (ret < 0) {
-        HM2_ERR("sigma5abs: error adding pin %s. error code %d\n", name, ret);
+        HM2_ERR("sigma5abs: error adding pin %s. error code %d\n", fullname, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int defineHalParam(hostmot2_t *hm2, int inst, const char* name, hal_type_t type, hal_param_dir_t dir, void* addr) {
+    int ret;
+    char fullname[HAL_NAME_LEN];
+
+    if(rtapi_snprintf(fullname, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
+        HM2_ERR("sigma5abs: Formatted param name too long. %s.sigma5abs.%02d.%s\n", hm2->llio->name, inst, name);
+        return -1;
+    }
+
+    ret = hal_param_new(fullname, type, dir, addr, hm2->llio->comp_id);
+
+    if (ret < 0) {
+        HM2_ERR("sigma5abs: error adding param %s. error code %d\n", fullname, ret);
         return -1;
     }
 
@@ -173,6 +193,8 @@ int defineHalPin(hostmot2_t *hm2, int inst, const char* name, hal_type_t type, h
 
 
 int defineHalPins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
+
+    //debug pins
     if(0 > defineHalPin(hm2, id, "debug.magic1", HAL_U32, HAL_OUT, (void**)&(inst->magic1))) 
     { return -1; }
 
@@ -191,9 +213,6 @@ int defineHalPins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
     if(0 > defineHalPin(hm2, id, "debug.z-counter",            HAL_U32, HAL_OUT, (void**)&(inst->z_counter)))
     { return -1; }
    
-    if(0 > defineHalPin(hm2, id, "debug.rx-count",         HAL_U32, HAL_OUT, (void**)&(inst->rx_count)))
-    { return -1; }
-   
     if(0 > defineHalPin(hm2, id, "debug.rx0",              HAL_U32, HAL_OUT, (void**)&(inst->rx0)))
     { return -1; }
    
@@ -203,31 +222,12 @@ int defineHalPins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
     if(0 > defineHalPin(hm2, id, "debug.rx2",              HAL_U32, HAL_OUT, (void**)&(inst->rx2)))
     { return -1; }
    
-    if(0 > defineHalPin(hm2, id, "debug.rx3",              HAL_U32, HAL_OUT, (void**)&(inst->rx3)))
-    { return -1; }
-   
-    if(0 > defineHalPin(hm2, id, "debug.rx4",              HAL_U32, HAL_OUT, (void**)&(inst->rx4)))
-    { return -1; }
-   
     if(0 > defineHalPin(hm2, id, "debug.reference-data", HAL_U32, HAL_OUT, (void**)&(inst->reference_data)))
     { return -1; }
    
     if(0 > defineHalPin(hm2, id, "debug.reference-angle", HAL_U32, HAL_OUT, (void**)&(inst->reference_angle)))
     { return -1; }
 
-    if(0 > defineHalPin(hm2, id, "debug.reference-turn", HAL_U32, HAL_OUT, (void**)&(inst->reference_turn)))
-    { return -1; }
- 
-   
-    if(0 > defineHalPin(hm2, id, "debug.rotor-count",  HAL_U32, HAL_OUT, (void**)&(inst->rotor_count)))
-    { return -1; }
-    
-    if(0 > defineHalPin(hm2, id, "debug.comm-count",  HAL_U32, HAL_OUT, (void**)&(inst->comm_count)))
-    { return -1; }
-    
-    if(0 > defineHalPin(hm2, id, "debug.raw-angle",  HAL_U32, HAL_OUT, (void**)&(inst->raw_angle)))
-    { return -1; }
- 
     if(0 > defineHalPin(hm2, id, "debug.raw_count",     HAL_U32, HAL_OUT, (void**)&(inst->raw_count)))
     { return -1; }
  
@@ -243,51 +243,26 @@ int defineHalPins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
     if(0 > defineHalPin(hm2, id, "debug.rotor-u-offset",   HAL_U32, HAL_OUT, (void**)&(inst->rotor_u_offset)))
     { return -1; }
     
-    if(0 > defineHalPin(hm2, id, "debug.raw-rotor-count",   HAL_U32, HAL_OUT, (void**)&(inst->raw_rotor_count)))
-    { return -1; }
- 
-    if(0 > defineHalPin(hm2, id, "debug.rotor-u-count",   HAL_U32, HAL_OUT, (void**)&(inst->rotor_u_count)))
-    { return -1; }
- 
     if(0 > defineHalPin(hm2, id, "debug.busy",  HAL_BIT, HAL_OUT, (void**)&(inst->busy)))
     { return -1; }
  
-    if(0 > defineHalPin(hm2, id, "debug.any-data",  HAL_BIT, HAL_OUT, (void**)&(inst->any_data)))
+    if(0 > defineHalPin( hm2, id, "debug.any-data",  HAL_BIT, HAL_OUT, (void**)&(inst->any_data)))
     { return -1; }
 
     if(0 > defineHalPin(hm2, id, "debug.data-valid",  HAL_BIT, HAL_OUT, (void**)&(inst->data_valid)))
     { return -1; }
- 
-  
-    if(hm2->dpll_module_present) {
-        if(0 > defineHalPin(hm2, id, "timer-number", HAL_S32, HAL_IN, (void**)&(inst->timer)))
-        { return -1; }
-    }
-  
-    if(0 > defineHalPin(hm2, id, "ppr",          HAL_U32, HAL_IN, (void**)&(inst->ppr)))
+
+
+    //pins 
+    if(0 > defineHalPin(hm2, id, "run", HAL_BIT, HAL_IN, (void**)&(inst->run)))
     { return -1; }
  
-    if(0 > defineHalPin(hm2, id, "enable", HAL_BIT, HAL_IN, (void**)&(inst->enable)))
-    { return -1; }
-  
-    if(0 > defineHalPin(hm2, id, "reset",        HAL_BIT, HAL_IN, (void**)&(inst->reset)))
-    { return -1; }
-   
     if(0 > defineHalPin(hm2, id, "fault",        HAL_BIT, HAL_OUT, (void**)&(inst->fault)))
     { return -1; }
-   
+
     if(0 > defineHalPin(hm2, id, "fault-count",  HAL_U32, HAL_OUT, (void**)&(inst->fault_count)))
     { return -1; }
-   
-    if(0 > defineHalPin(hm2, id, "fault-inc",    HAL_U32, HAL_IN, (void**)&(inst->fault_inc)))
-    { return -1; }
-   
-    if(0 > defineHalPin(hm2, id, "fault-dec",    HAL_U32, HAL_IN, (void**)&(inst->fault_dec)))
-    { return -1; }
-   
-    if(0 > defineHalPin(hm2, id, "fault-lim",    HAL_U32, HAL_IN, (void**)&(inst->fault_lim)))
-    { return -1; }
-   
+
     if(0 > defineHalPin(hm2, id, "index-enable", HAL_BIT, HAL_IO,  (void**)&(inst->index_enable)))
     { return -1; }
    
@@ -297,44 +272,51 @@ int defineHalPins(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
     if(0 > defineHalPin(hm2, id, "position",     HAL_FLOAT, HAL_OUT, (void**)&(inst->position)))
     { return -1; }
 
-
-   
-    if(0 > defineHalPin(hm2, id, "scale",        HAL_FLOAT, HAL_IN, (void**)&(inst->scale)))
-    { return -1; }
-   
     if(0 > defineHalPin(hm2, id, "referenced",   HAL_BIT, HAL_OUT, (void**)&(inst->referenced)))
     { return -1; }
-   
  
-    //commutation pins 
-    if(0 > defineHalPin(hm2, id, "comm.lead-angle",  HAL_FLOAT, HAL_IN, (void**)&(inst->lead_angle)))
+    if(0 > defineHalPin(hm2, id, "rotor-angle",  HAL_FLOAT, HAL_OUT, (void**)&(inst->rotor_angle)))
+    { return -1;}
+ 
+    if(0 > defineHalPin(hm2, id, "u",            HAL_BIT, HAL_OUT, (void**)&(inst->u)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "v",            HAL_BIT, HAL_OUT, (void**)&(inst->v)))
+    { return -1; }
+   
+    if(0 > defineHalPin(hm2, id, "w",            HAL_BIT, HAL_OUT, (void**)&(inst->w)))
+    { return -1; }
+ 
+    if(0 > defineHalPin(hm2, id, "z",            HAL_BIT, HAL_OUT, (void**)&(inst->z)))
+    { return -1; }
+
+    if(0 > defineHalPin(hm2, id, "scale",        HAL_FLOAT, HAL_IN, (void**)&(inst->scale)))
+    { return -1; }
+
+
+    //params
+    if(hm2->dpll_module_present && 0 > defineHalParam(hm2, id, "dpll-timer", HAL_S32, HAL_RW, (void*)&(inst->dpll_timer)))
+    { return -1; }
+
+    if(0 > defineHalParam(hm2, id, "ppr",          HAL_U32, HAL_RW, (void*)&(inst->ppr)))
+    { return -1; }
+  
+    if(0 > defineHalParam(hm2, id, "fault-inc",    HAL_U32, HAL_RW, (void*)&(inst->fault_inc)))
+    { return -1; }
+   
+    if(0 > defineHalParam(hm2, id, "fault-dec",    HAL_U32, HAL_RW, (void*)&(inst->fault_dec)))
+    { return -1; }
+   
+    if(0 > defineHalParam(hm2, id, "fault-lim",    HAL_U32, HAL_RW, (void*)&(inst->fault_lim)))
+    { return -1; }
+   
+    if(0 > defineHalParam(hm2, id, "lead-angle",  HAL_FLOAT, HAL_RW, (void*)&(inst->lead_angle)))
     { return -1;}
 
-    if(0 > defineHalPin(hm2, id, "comm.pole-count",   HAL_U32, HAL_IN, (void**)&(inst->pole_count)))
+    if(0 > defineHalParam(hm2, id, "pole-count",   HAL_U32, HAL_RW, (void*)&(inst->pole_count)))
     { return -1; }
  
-    if(0 > defineHalPin(hm2, id, "comm.rotor-angle",  HAL_FLOAT, HAL_OUT, (void**)&(inst->rotor_angle)))
-    { return -1;}
-    
-    if(0 > defineHalPin(hm2, id, "comm.comm-angle",  HAL_FLOAT, HAL_OUT, (void**)&(inst->comm_angle)))
-    { return -1;}
- 
-    if(0 > defineHalPin(hm2, id, "comm.rotor-alignment",  HAL_FLOAT, HAL_OUT, (void**)&(inst->rotor_alignment)))
-    { return -1;}
-   
-     if(0 > defineHalPin(hm2, id, "comm.u",            HAL_BIT, HAL_OUT, (void**)&(inst->u)))
-    { return -1; }
-   
-    if(0 > defineHalPin(hm2, id, "comm.v",            HAL_BIT, HAL_OUT, (void**)&(inst->v)))
-    { return -1; }
-   
-    if(0 > defineHalPin(hm2, id, "comm.w",            HAL_BIT, HAL_OUT, (void**)&(inst->w)))
-    { return -1; }
- 
-    if(0 > defineHalPin(hm2, id, "comm.z",            HAL_BIT, HAL_OUT, (void**)&(inst->z)))
-    { return -1; }
-  
-  
+
 
     return 0;
 }
@@ -348,15 +330,11 @@ int hm2_sigma5abs_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
     hm2_sigma5abs_t* sg5 = &hm2->sigma5abs;
 
     tram_creation_data_t td[] = {
-        { "timer",    false, 1,  &sg5->timer_addr,    &sg5->timer_reg },
         { "control",  false, 0,  &sg5->control_addr,  &sg5->control_reg },
-        { "rx_count", true,  2,  &sg5->rx_count_addr, &sg5->rx_count_reg },
-        { "rx0",      true,  3,  &sg5->rx0_addr,      &sg5->rx0_reg },
-        { "rx1",      true,  4,  &sg5->rx1_addr,      &sg5->rx1_reg },
-        { "rx2",      true,  5,  &sg5->rx2_addr,      &sg5->rx2_reg },
-        { "rx3",      true,  6, &sg5->rx3_addr,      &sg5->rx3_reg },
-        { "rx4",      true,  7, &sg5->rx4_addr,      &sg5->rx4_reg },
-        { "status",   true,  8, &sg5->status_addr,   &sg5->status_reg }
+        { "rx0",      true,  1,  &sg5->rx0_addr,      &sg5->rx0_reg },
+        { "rx1",      true,  2,  &sg5->rx1_addr,      &sg5->rx1_reg },
+        { "rx2",      true,  3,  &sg5->rx2_addr,      &sg5->rx2_reg },
+        { "status",   true,  4,  &sg5->status_addr,   &sg5->status_reg }
     };
 
 
@@ -396,7 +374,7 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
     hm2_module_descriptor_t *md = &hm2->md[md_index];
     static int last_gtag = -1;
 
-    if (!hm2_md_is_consistent_or_complain(hm2, md_index, 0, 9, 4, 0x03FF)) {
+    if (!hm2_md_is_consistent_or_complain(hm2, md_index, 0, 5, 4, 0x001F)) {
         HM2_ERR("inconsistent Module Descriptor!\n");
         return -EINVAL;
     }
@@ -456,52 +434,53 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         if(defineHalPins(hm2, inst, i) < 0) {
             return -1;
         }
-    
-        inst->prev_reset = 0;
+   
+        //privat variables 
         inst->full_count = 0;
         inst->index_offset = 0;
         inst->prev_encoder_count = 0;
+        inst->reference_pole_pair = 0;
         inst->startup = 1;
 
+        //paramaters
+        inst->dpll_timer = -1;
+        inst->fault_lim = 200;
+        inst->fault_inc = 10;
+        inst->fault_dec = 1;
+        inst->ppr = 2097152; //encoder pulses per turn
+        inst->lead_angle = 90.0;
+        inst->pole_count = 8;
+
+
+
+        //debug pins
         *inst->reference_data = 0;
+        *inst->slowclock = 0;
+        *inst->fastclock = 0;
+        *inst->z_counter = 0;
+        *inst->status = 0;
+        *inst->raw_count = 0;
+        *inst->rotor_u_min = 0;
+        *inst->rotor_u_max = 0;
+        *inst->rotor_u_offset = 0;
+
+
+
+
+        //pins
         *inst->reference_angle = 0;
         *inst->index_enable = 0;
         *inst->position = 0.0;
         *inst->scale = 1.0;
         *inst->velocity = 0;
-        *inst->slowclock = 0;
-        *inst->fastclock = 0;
-
-        if(hm2->dpll_module_present) {
-            *inst->timer = -1;
-        }
-        
-        *inst->z = 0;
         *inst->u = 0;
         *inst->v = 0;
         *inst->w = 0;
-        *inst->z_counter = 0;
-        *inst->reset = 0;
-        *inst->fault = 1;
-        *inst->fault_lim = 20;
-        *inst->fault_count = *inst->fault_lim;
-        *inst->fault_inc = 10;
-        *inst->fault_dec = 1;
-        *inst->enable = 0;
-        *inst->status = 0;
-        *inst->lead_angle = 90.0;
-        *inst->pole_count = 8;
+        *inst->z = 0;
+        *inst->fault = 0;
+        *inst->fault_count = inst->fault_lim;
+        *inst->run = 1;
         *inst->rotor_angle = 0;
-        *inst->rotor_alignment = 30.0;
-        *inst->comm_angle = 0;
-        *inst->rotor_count = 0;
-        *inst->comm_count = 0;
-        *inst->ppr = 2097152; //encoder pulses per turn
-        *inst->raw_count = 0;
-        *inst->rotor_u_min = 0;
-        *inst->rotor_u_max = 0;
-        *inst->rotor_u_offset = 0;
-        *inst->reference_turn = 0;
 
     }
 	
@@ -515,6 +494,7 @@ void hm2_sigma5abs_cleanup(hostmot2_t* hm2) {
 
 void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
     hm2_sigma5abs_instance_t* inst;
+    
     //control register
     //bit 0 - enable
     //bit 1 - transmit
@@ -522,28 +502,24 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
 
     for(int i = 0; i < hm2->sigma5abs.num_instances; i++) {
         inst = &hm2->sigma5abs.instances[i];
+        int32_t dpll_timer_num = inst->dpll_timer;
 
-        if(hm2->dpll_module_present) {
+
+        if(hm2->dpll_module_present && dpll_timer_num >= 0 && dpll_timer_num <= 4) {
             //enable timer control
             hm2->sigma5abs.control_reg[i] |= 0x4;
-
-            int32_t dpll_timer_num = *inst->timer;
-            if(dpll_timer_num >= 0 && dpll_timer_num <= 4) {
-                hm2->sigma5abs.timer_reg[i] = dpll_timer_num;
-            } else {
-                hm2->sigma5abs.timer_reg[i] = 0;
-            }
-
-         } else {
+            //hm2->sigma5abs.timer_reg[i] = dpll_timer_num;
+            hm2->sigma5abs.control_reg[i] = (dpll_timer_num << 8) | (hm2->sigma5abs.control_reg[i] & 0xFFFF00FF);
+        } else {
             //disable timer control
             hm2->sigma5abs.control_reg[i] &= ~0x4;
+            hm2->sigma5abs.control_reg[i] &= 0xFFFF00FF;
 
             //alternate transmit bit every cycle to trigger manchester trx
             hm2->sigma5abs.control_reg[i] ^= 0x2;
         }
 
-        
-        if(*inst->enable && (!*inst->fault || inst->startup)) {
+        if(*inst->run && (inst->startup || !*inst->fault)) {
             hm2->sigma5abs.control_reg[i] |= 0x1;
         } else {
             hm2->sigma5abs.control_reg[i] &= ~0x1;
@@ -556,23 +532,18 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
 
 
 void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, int i, hal_float_t fPeriods, const char* prefix) {
-    char register_data[20] = {0};  //raw data passed from manchester trx with an hdlc message encoded in it
+    char register_data[20] = {0};  
   
  
     hal_bit_t prev_referenced = *inst->referenced;
-    hal_u32_t prev_z_counter = *inst->z_counter;
     hal_bit_t prev_u = *inst->u;
     hal_bit_t prev_v = *inst->v;
     hal_bit_t prev_w = *inst->w;
 
+
     int counter_bits = 24; //total number of bits stored in encoder
 
-
-
     rtapi_s64 dCounts = 0;
-    
-
-    hal_u32_t encoder_count = 0;
 
     //commutation lead angle converted to counts
     hal_s32_t lead_angle_counts = 0;
@@ -583,113 +554,100 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     hal_u32_t wrap_upper = wrap_counts - wrap_lower;
     
     rtapi_s64 counter_rollover = 0;
-    rtapi_s64 direction = 0;
 
+
+    hal_u32_t raw_angle = 0;
+
+    hal_u32_t raw_rotor_count = 0;
     //current number of counts in "rotor" space
     hal_u32_t rotor_pulses = 0; 
 
+    hal_u32_t rotor_u_count = 0;
+
+    hal_u32_t comm_count = 0;
+
+    *inst->status = (hal_u32_t)hm2->sigma5abs.status_reg[i];
 
 
-    //reset on rising edge of reset pin if fault exists
-    if(!inst->prev_reset && *inst->reset && *inst->fault) {
+    if(!*inst->run) {
         inst->startup = 1;
-    }
-
-    inst->prev_reset = *inst->reset;
-
-    //during startup mode we ignore any read failures
-    //until fault_count reaches 0
-    if(inst->startup) {
-        if(*inst->fault_count == 0) {
-            inst->startup = 0;
-            *inst->fault = 0;
-        } else if(*inst->fault_count > *inst->fault_lim) {
-            *inst->fault_count = *inst->fault_lim;
-        }
-
+        *inst->fault_count = inst->fault_lim;
+        return;
     } else {
-        if(*inst->fault) {
+        if(inst->startup) {
+            if(*inst->fault_count == 0) {
+                inst->startup = 0;
+                *inst->fault = 0;
+            } else if(*inst->fault_count > inst->fault_lim) {
+                *inst->fault_count = inst->fault_lim;
+            }
+        } else if(*inst->fault) {
             return;
-        } else if (*inst->fault_count > *inst->fault_lim) {
+        } else if(*inst->fault_count > inst->fault_lim) {
             *inst->fault = 1;
             HM2_ERR("%s Too many encoder communication faults.\n", prefix);
             return;
         }
     }    
-
     
-    *inst->rx_count = (hal_u32_t)hm2->sigma5abs.rx_count_reg[i];
     *inst->rx0 = (hal_u32_t)hm2->sigma5abs.rx0_reg[i];
     *inst->rx1 = (hal_u32_t)hm2->sigma5abs.rx1_reg[i];
     *inst->rx2 = (hal_u32_t)hm2->sigma5abs.rx2_reg[i];
-    *inst->rx3 = (hal_u32_t)hm2->sigma5abs.rx3_reg[i];
-    *inst->rx4 = (hal_u32_t)hm2->sigma5abs.rx4_reg[i];
 
     //copy registers into register_data buffer
     //register data needs to be converted into big endian
     *(hal_u32_t*)(register_data+(0*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx0_reg[i]);
     *(hal_u32_t*)(register_data+(1*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx1_reg[i]);
     *(hal_u32_t*)(register_data+(2*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx2_reg[i]);
-    *(hal_u32_t*)(register_data+(3*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx3_reg[i]);
-    *(hal_u32_t*)(register_data+(4*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx4_reg[i]);
 
 
-    *inst->status = (hal_u32_t)hm2->sigma5abs.status_reg[i];
 
     *inst->data_valid = (*inst->status & 0x8) ? 1 : 0;
     *inst->busy = (*inst->status & 0x10) ? 1 : 0;
     *inst->any_data = (*inst->status & 0x20) ? 1 : 0;
 
     //check for start conditiona
-    if(!*inst->fault) {
-        if(*inst->busy) {
-            HM2_ERR("%s is still receiving at thread read time. Dpll timer settings are incorrect.\n", prefix);
-            *inst->fault = 1;
-            inst->startup = 0;
-            return;
-        }
- 
-        if(*inst->pole_count == 0) {
-            HM2_ERR("%s.pole_count is invalid. Must be greater than 0.\n", prefix);
-            *inst->fault = 1;
-            inst->startup = 0;
-            return;
-        }
-
-        if(*inst->ppr == 0) {
-             HM2_ERR("%s.ppr is invalid. Must be greater than 0.\n", prefix);
-            *inst->fault = 1;
-            inst->startup = 0;
-            return;
-        }
-
-        if(fabs(*inst->lead_angle) >= 360.0) {
-            HM2_ERR("%s.lead_angle is invalid. Must be between -360.0 and 360.0 .\n", prefix);
-            *inst->fault = 1;
-            inst->startup = 0;
-            return;
-        }
-    
-       //scaled position value for motion controller 
-       if(*inst->scale == 0.0) {
-            HM2_ERR("%s.scale of 0.0 is invalid.\n", prefix);
-            *inst->fault = 1;
-            inst->startup = 0;
-            return;
-        }
-
-        if(*inst->rotor_alignment < 0.0|| *inst->rotor_alignment > 360.0) {
-            HM2_ERR("%s.comm.rotor-alignment value must be >= 0.0 and < 360.0\n", prefix);
-            *inst->fault = 1;
-            inst->startup = 0;
-            return;
-        }
+    if(*inst->busy) {
+        HM2_ERR("%s is still receiving at thread read time. Dpll timer settings are incorrect.\n", prefix);
+        *inst->fault = 1;
+        inst->startup = 0;
+        return;
     }
+ 
+    if(inst->pole_count == 0) {
+        HM2_ERR("%s.pole_count = %d is invalid. Must be greater than 0.\n", prefix, inst->pole_count);
+        *inst->fault = 1;
+        inst->startup = 0;
+        return;
+    }
+
+    if(inst->ppr == 0) {
+        HM2_ERR("%s.ppr = %d is invalid. Must be greater than 0.\n", prefix, inst->ppr);
+        *inst->fault = 1;
+        inst->startup = 0;
+        return;
+    }
+
+    if(fabs(inst->lead_angle) > 180.0) {
+        HM2_ERR("%s.lead_angle = %f value must be between -180.0 and 180.0 .\n", prefix, inst->lead_angle);
+        *inst->fault = 1;
+        inst->startup = 0;
+        return;
+    }
+    
+    //scaled position value for motion controller 
+    if(*inst->scale == 0.0) {
+        HM2_ERR("%s.scale of 0.0 is invalid.\n", prefix);
+        *inst->fault = 1;
+        inst->startup = 0;
+        return;
+    }
+    
 
 
     
     if(!*inst->data_valid) {
-        *inst->fault_count += *inst->fault_inc;
+        *inst->fault_count += inst->fault_inc;
         return;
     }
     
@@ -701,7 +659,7 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
                           inst->slowclock,
                           inst->fastclock,
                           inst->magic3,
-                          &encoder_count,
+                          inst->raw_count,
                           inst->z,    
                           inst->u,
                           inst->v,
@@ -711,22 +669,89 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
  
  
     if(prev_referenced && !*inst->referenced) {
+        //all data lost
         *inst->reference_angle = 0;
+        inst->prev_encoder_count = 0;
+        inst->full_count = 0;
+        inst->index_offset = 0;
+
+        //this will force realignment of rotor after next start
+        *inst->u = 0;
+        *inst->v = 0;
+        *inst->w = 0;
+
         *inst->fault = 1;
-        HM2_ERR("%s reference was lost. Rehoming necessary.\n", prefix);
+        HM2_ERR("%s reference was lost. (Encoder power failure?)  Rehoming necessary.\n", prefix);
         return;
     }
+
+
+
+    
+
+    
+
+    ///////////////////////////////////////////////////////////////////////////
+    //compute commutaion data
+    ///////////////////////////////////////////////////////////////////////////
+
+    raw_angle = *inst->raw_count % inst->ppr;
+
+    rotor_pulses = inst->ppr / (inst->pole_count / 2);
+
+    lead_angle_counts = (inst->lead_angle * ((hal_float_t)rotor_pulses)) / 360.0;
+
+    raw_rotor_count = *inst->raw_count % rotor_pulses;
+
+    rotor_u_count = modsub(raw_rotor_count,
+                           hallRotorCount(rotor_pulses, 1, *inst->u, *inst->v, *inst->w),
+                           rotor_pulses);
+
+    //adjust rotor alignment value continuously
+    //this finds the highest and lowest edge of hall transitions 
+    //and finds the center of the alignment value which will be at rotor 0 position (UVW=100)
+    //this finds the center point of all hall transitions to find those values
+    if(!prev_u && !prev_v && !prev_w) {
+        //for the first cycle initialize starting value to center of known hall position
+        *inst->rotor_u_min = rotor_u_count;
+        *inst->rotor_u_max = rotor_u_count; 
+    } else {
+        if(modsub(rotor_u_count, *inst->rotor_u_max, rotor_pulses) < (rotor_pulses / 2)) {
+            *inst->rotor_u_max = rotor_u_count;
+        }
+
+        if(modsub(*inst->rotor_u_min, rotor_u_count, rotor_pulses) < (rotor_pulses / 2)) {
+            *inst->rotor_u_min = rotor_u_count;
+        }
+    }
+
+
+    *inst->rotor_u_offset = modmed(*inst->rotor_u_max, *inst->rotor_u_min, rotor_pulses);
+
+    
+    //rotor position with lead angle added in
+    comm_count = ((rotor_pulses << 2) //avoid negative remainder
+                   + modsub(raw_rotor_count, *inst->rotor_u_offset, rotor_pulses)
+                   + lead_angle_counts
+                   ) % rotor_pulses;
+    
+    //commitation angle from 0 to 1                     
+    *inst->rotor_angle = ((hal_float_t)comm_count) / ((hal_float_t)rotor_pulses);                         
+
+
+
 
 
     ///////////////////////////////////////////////////////////////////////////
     //compute position data
     ///////////////////////////////////////////////////////////////////////////
 
+
     //check for encoder rollover
-    if(inst->prev_encoder_count > wrap_upper && encoder_count < wrap_lower) {
+    if(inst->prev_encoder_count > wrap_upper && *inst->raw_count < wrap_lower) {
         //positive rollover
         counter_rollover = (rtapi_s64)wrap_counts; 
-    } else if(inst->prev_encoder_count < wrap_lower && encoder_count > wrap_upper) {
+    } else if(inst->prev_encoder_count < wrap_lower && *inst->raw_count > wrap_upper) {
         //negative_rollover
         counter_rollover = -(rtapi_s64)wrap_counts;
     } else {
@@ -735,108 +760,43 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     }
 
 
-    dCounts = (rtapi_s64)encoder_count - (rtapi_s64)inst->prev_encoder_count + counter_rollover;
+    dCounts = (rtapi_s64)*inst->raw_count - (rtapi_s64)inst->prev_encoder_count + counter_rollover;
     inst->full_count += dCounts;
-    direction = dCounts > 0 ? 1 : -1;
-    inst->prev_encoder_count = encoder_count;
-    *inst->position = ((hal_float_t)(inst->full_count - inst->index_offset)) / *inst->scale;
+    inst->prev_encoder_count = *inst->raw_count;
     *inst->velocity = (dCounts / *inst->scale) / (hm2->sigma5abs.time - inst->time);
-
-
-    *inst->raw_count = encoder_count;
-    *inst->raw_angle = encoder_count % *inst->ppr;
-
-
-    
-
-    ///////////////////////////////////////////////////////////////////////////
-    //compute commutaion data
-    ///////////////////////////////////////////////////////////////////////////
-              
-    rotor_pulses = *inst->ppr / (*inst->pole_count / 2);
-
-    lead_angle_counts = (*inst->lead_angle * ((hal_float_t)rotor_pulses)) / 360.0;
-
-    *inst->raw_rotor_count = encoder_count % rotor_pulses;
-
-    *inst->rotor_u_count = modsub(*inst->raw_rotor_count,
-                                  hallRotorCount(rotor_pulses, 1, *inst->u, *inst->v, *inst->w),
-                                  rotor_pulses);
-
-    //adjust rotor alignment value continuously
-    //this finds the highest and lowest edge of hall transitions 
-    //and finds the center of the alignment value which will be at rotor 0 position (UVW=100)
-    //this finds the center point of all hall transitions to find those values
-    if(!prev_u && !prev_v && !prev_w) {
-        //for the first cycle initialize starting value to center of known hall position
-        *inst->rotor_u_min = *inst->rotor_u_count;
-        *inst->rotor_u_max = *inst->rotor_u_count; 
-    } else {
-        if(modsub(*inst->rotor_u_count, *inst->rotor_u_max, rotor_pulses) < (rotor_pulses / 2)) {
-            *inst->rotor_u_max = *inst->rotor_u_count;
-        }
-
-        if(modsub(*inst->rotor_u_min, *inst->rotor_u_count, rotor_pulses) < (rotor_pulses / 2)) {
-            *inst->rotor_u_min = *inst->rotor_u_count;
-        }
-    }
-
-
-    *inst->rotor_u_offset = modmed(*inst->rotor_u_max, *inst->rotor_u_min, rotor_pulses);
-
-    //actual rotor position
-    *inst->rotor_count = modsub(*inst->raw_rotor_count, *inst->rotor_u_offset, rotor_pulses);
-    //actual rotor angle from 0 to 1 
-    *inst->rotor_angle = ((hal_float_t)*inst->rotor_count) / ((hal_float_t)rotor_pulses);
-    
-    
-    //rotor position with lead angle added in
-    *inst->comm_count = ((rotor_pulses << 2) //avoid negative remainder
-                          + *inst->rotor_count
-                          + lead_angle_counts
-                         ) % rotor_pulses;
-    
-    //commitation angle from 0 to 1                     
-    *inst->comm_angle = ((hal_float_t)*inst->comm_count) / ((hal_float_t)rotor_pulses);                         
-
-
 
     
     /*
-      when the encoder first powers on it does not know where the index point is.
-      the first time that the index is passed a flag is recorded in the encoders memory.
-      We know that the exact reference point is the center of the z hall sensor which is
-      always at UVW(101) = 30 degrees
+      when the encoder first powers on it does not know where the index point is until the encoder
+      crosses the Z point.
+      The z point is always at rotor position 30 degrees or UVW(101).
+      The current rotor pole pair is all that needs to be known in order to determine the exact z point
     */
     if(!prev_referenced  && *inst->referenced) {
-        *inst->reference_turn = *inst->raw_angle / rotor_pulses;
+        inst->reference_pole_pair = raw_angle / rotor_pulses;
     }
 
     if(*inst->referenced) {
-       *inst->reference_angle = (*inst->reference_turn * rotor_pulses) + ((*inst->rotor_u_offset + hallRotorCount(rotor_pulses, 0, 1, 0, 1)) % rotor_pulses);
+       *inst->reference_angle = (inst->reference_pole_pair * rotor_pulses) 
+                                + ((*inst->rotor_u_offset + hallRotorCount(rotor_pulses, 0, 1, 0, 1)) % rotor_pulses);
     }
  
         
     /*
-        z_count changes only when a full rotation past the index point is made
-        once z_count changes and index_enable and the encoder is referenced
-        we set the index to the just crossed index point
+        
     */  
-    if(*inst->index_enable && *inst->referenced && (prev_z_counter != *inst->z_counter)) {
-        //fix this we should be able to set index offset instantly based upon direction
-
-        if(*inst->raw_angle < *inst->reference_angle) {
-            inst->index_offset = inst->full_count + *inst->reference_angle - *inst->raw_angle;
-        } else {
-            inst->index_offset = inst->full_count + *inst->ppr - *inst->raw_angle + *inst->reference_angle;
-        }
-          
+    if(*inst->index_enable && *inst->referenced) {
+        inst->index_offset = inst->full_count + modsub(*inst->reference_angle, raw_angle, inst->ppr);
         *inst->index_enable = 0;
     }
     
-    
-    if(*inst->fault_count > *inst->fault_dec) {
-        *inst->fault_count -= *inst->fault_dec;
+
+    *inst->position = ((hal_float_t)(inst->full_count - inst->index_offset)) / *inst->scale;
+
+
+
+    if(*inst->fault_count > inst->fault_dec) {
+        *inst->fault_count -= inst->fault_dec;
     } else {
         *inst->fault_count = 0;
     }
@@ -867,13 +827,9 @@ void hm2_sigma5abs_print_module(hostmot2_t* hm2) {
     if (hm2->sigma5abs.num_instances <= 0) return;
     HM2_PRINT("Sigma5ABS: %d\n", hm2->sigma5abs.num_instances);
     HM2_PRINT("    Control Addr: 0x%X\n", hm2->sigma5abs.control_addr);
-    HM2_PRINT("    Timer Addr: 0x%X\n", hm2->sigma5abs.timer_addr);
-    HM2_PRINT("    Rx Count Addr: 0x%X\n", hm2->sigma5abs.rx_count_addr);
     HM2_PRINT("    Rx0 Addr: 0x%X\n", hm2->sigma5abs.rx0_addr);
     HM2_PRINT("    Rx1 Addr: 0x%X\n", hm2->sigma5abs.rx1_addr);
     HM2_PRINT("    Rx2 Addr: 0x%X\n", hm2->sigma5abs.rx2_addr);
-    HM2_PRINT("    Rx3 Addr: 0x%X\n", hm2->sigma5abs.rx3_addr);
-    HM2_PRINT("    Rx4 Addr: 0x%X\n", hm2->sigma5abs.rx4_addr);
     HM2_PRINT("    Status Addr: 0x%X\n", hm2->sigma5abs.status_addr);
 }
 
