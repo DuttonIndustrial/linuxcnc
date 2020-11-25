@@ -1160,56 +1160,58 @@ typedef struct {
 typedef struct {
 
     //debug pins    
+    hal_bit_t* any_data;      //true when any data has been received     
+    hal_bit_t* busy;          //true if encoder data transmission has not completed at time of read
+    hal_u32_t* crc;           //crc value calculated by fpga
+    hal_bit_t* data_valid;    //true when fpga determines that data is valid
+    hal_u32_t* fastclock;
     hal_u32_t* magic1;
     hal_u32_t* magic2;
     hal_u32_t* magic3;
-    hal_u32_t* slowclock;
-    hal_u32_t* fastclock;
-    hal_u32_t* z_counter;
+    hal_u32_t* raw_count;      //raw encoder count
+    hal_u32_t* reference_angle;
+    hal_u32_t* reference_data;
+    hal_u32_t* rotor_offset; //center of UVW=100 position
+    hal_u32_t* rotor_offset_max;   //positive most value of UVW=100
+    hal_u32_t* rotor_offset_min;   //negative most value of UVW=100
     hal_u32_t* rx0;
     hal_u32_t* rx1;
     hal_u32_t* rx2;
-    hal_u32_t* reference_data;
-    hal_bit_t* any_data;      //true when any data has been received     
-    hal_bit_t* data_valid;    //true when valid data has been received
-    hal_bit_t* busy;          //true if encoder data transmission has not completed at time of read
-    hal_u32_t* raw_count;      //raw encoder count
-    hal_u32_t* rotor_u_min;   //negative most value of UVW=100
-    hal_u32_t* rotor_u_max;   //positive most value of UVW=100
-    hal_u32_t* rotor_u_offset; //center of UVW=100 position
+    hal_u32_t* slowclock;
     hal_u32_t* status;        //status data returned from hostmot2
-    hal_u32_t* reference_angle;
+    hal_u32_t* z_counter;
 
     //pins
-    hal_bit_t*   run;        //enable data exchange to encoder
-    hal_bit_t*   referenced;    //true when referenced
-    hal_bit_t*   index_enable;  //encoder index pin
-    hal_float_t* position;      //encoder position in scaled units
-    hal_float_t* scale;         //encoder position scale
-    hal_float_t* velocity;      //estimated velocity in units per second
-    hal_bit_t*   u;
-    hal_bit_t*   v;
-    hal_bit_t*   w;
-    hal_bit_t*   z;             //z position hall sensor
-    hal_float_t* rotor_angle; //rotor_angle after lead angle applie
     hal_bit_t*   fault;
     hal_u32_t*   fault_count;
-
+    hal_bit_t*   index_enable;  //encoder index pin
+    hal_float_t* position;      //encoder position in scaled units
+    hal_bit_t*   referenced;    //true when referenced
+    hal_float_t* rotor_angle;   //rotor_angle after lead angle applie
+    hal_bit_t*   run;           //enable data exchange to encoder
+    hal_float_t* scale;         //encoder position scale
+    hal_bit_t*   u;             //u hall sensor
+    hal_bit_t*   v;             //v hall sensor
+    hal_float_t* velocity;      //estimated velocity in units per second
+    hal_bit_t*   w;             //w hall sensor
+    hal_bit_t*   z;             //index hall sensor
+        
     //params
     hal_s32_t   dpll_timer; 
-    hal_u32_t   fault_inc;
     hal_u32_t   fault_dec;
+    hal_u32_t   fault_inc;
     hal_u32_t   fault_lim;
-    hal_u32_t   ppr;             //pulses per revolution of encoder
-    hal_float_t lead_angle; //commutation lead angle
-    hal_u32_t   pole_count; //commutation pole count
+    hal_float_t lead_angle;     //commutation lead angle
+    hal_u32_t   pole_count;     //commutation pole count
+    hal_u32_t   ppr;            //pulses per revolution of encoder
+    
 
-
-    hal_bit_t startup;             //true during startup when enable goes true
-    hal_u32_t reference_pole_pair; //rotor turn that reference was found
-    hal_u32_t prev_encoder_count;  //previous rel encoder count
+    //internal variables
     rtapi_s64 full_count;          //full relative position count
     rtapi_s64 index_offset;        //offset of simulated index position
+    hal_u32_t prev_encoder_count;  //previous rel encoder count
+    hal_u32_t reference_pole_pair; //rotor turn that reference was found
+    hal_bit_t startup;             //true during startup
     hal_float_t time;              //previous time a full cycle was completed
 } hm2_sigma5abs_instance_t;
 
@@ -1740,7 +1742,6 @@ int hm2_pktuart_read(char *name, unsigned char data[],  rtapi_u8 *num_frames, rt
 // Yaskawa Sigma 5 ABS encoder
 //
 int hm2_sigma5abs_parse_md(hostmot2_t* hm2, int md_index);
-void hm2_sigma5abs_cleanup(hostmot2_t* hm2);
 void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2);
 void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long period);
 void hm2_sigma5abs_print_module(hostmot2_t* hm2);

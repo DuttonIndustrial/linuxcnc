@@ -1098,7 +1098,6 @@ static void hm2_cleanup(hostmot2_t *hm2) {
     hm2_sserial_cleanup(hm2);
     hm2_bspi_cleanup(hm2);
     hm2_ssr_cleanup(hm2);
-    hm2_sigma5abs_cleanup(hm2);
 
     // free all the tram entries
     hm2_tram_cleanup(hm2);
