@@ -161,15 +161,15 @@ int defineHalPin(hostmot2_t *hm2, int inst, const char* name, hal_type_t type, h
     int ret;
     char fullname[HAL_NAME_LEN];
 
-    if(rtapi_snprintf(fullname, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
-        HM2_ERR("sigma5abs: Formatted pin name too long. %s.sigma5abs.%02d.%s\n", hm2->llio->name, inst, name);
+    if(rtapi_snprintf(fullname, HAL_NAME_LEN, "%s.sigma5enc.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
+        HM2_ERR("sigma5enc: Formatted pin name too long. %s.sigma5enc.%02d.%s\n", hm2->llio->name, inst, name);
         return -1;
     }
 
     ret = hal_pin_new(fullname, type, dir, addr, hm2->llio->comp_id);
 
     if (ret < 0) {
-        HM2_ERR("sigma5abs: error adding pin %s. error code %d\n", fullname, ret);
+        HM2_ERR("sigma5enc: error adding pin %s. error code %d\n", fullname, ret);
         return -1;
     }
 
@@ -181,15 +181,15 @@ int defineHalParam(hostmot2_t *hm2, int inst, const char* name, hal_type_t type,
     int ret;
     char fullname[HAL_NAME_LEN];
 
-    if(rtapi_snprintf(fullname, HAL_NAME_LEN, "%s.sigma5abs.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
-        HM2_ERR("sigma5abs: Formatted param name too long. %s.sigma5abs.%02d.%s\n", hm2->llio->name, inst, name);
+    if(rtapi_snprintf(fullname, HAL_NAME_LEN, "%s.sigma5enc.%02d.%s", hm2->llio->name, inst, name) == HAL_NAME_LEN) {
+        HM2_ERR("sigma5enc: Formatted param name too long. %s.sigma5enc.%02d.%s\n", hm2->llio->name, inst, name);
         return -1;
     }
 
     ret = hal_param_new(fullname, type, dir, addr, hm2->llio->comp_id);
 
     if (ret < 0) {
-        HM2_ERR("sigma5abs: error adding param %s. error code %d\n", fullname, ret);
+        HM2_ERR("sigma5enc: error adding param %s. error code %d\n", fullname, ret);
         return -1;
     }
 
@@ -197,7 +197,7 @@ int defineHalParam(hostmot2_t *hm2, int inst, const char* name, hal_type_t type,
 }
 
 
-int defineHal(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
+int defineHal(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
     //pins
     pin_creation_data_t pindefs[] = {
         {"debug.any_data",          HAL_BIT,    HAL_OUT, (void**)&inst->any_data},
@@ -227,7 +227,6 @@ int defineHal(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
         {"referenced",              HAL_BIT,    HAL_OUT, (void**)&inst->referenced},
         {"rotor-angle",             HAL_FLOAT,  HAL_OUT, (void**)&inst->rotor_angle},
         {"run",                     HAL_BIT,    HAL_IN,  (void**)&inst->run},
-        {"scale",                   HAL_FLOAT,  HAL_IN,  (void**)&inst->scale},
         {"u",                       HAL_BIT,    HAL_OUT, (void**)&inst->u},
         {"v",                       HAL_BIT,    HAL_OUT, (void**)&inst->v},
         {"velocity",                HAL_FLOAT,  HAL_OUT, (void**)&inst->velocity},
@@ -250,7 +249,9 @@ int defineHal(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
         {"fault-dec",  HAL_U32,   HAL_RW, (void*)&inst->fault_dec},
         {"fault-lim",  HAL_U32,   HAL_RW, (void*)&inst->fault_lim},
         {"lead-angle", HAL_FLOAT, HAL_RW, (void*)&inst->lead_angle},
-        {"pole-count", HAL_U32,   HAL_RW, (void*)&inst->pole_count}
+        {"pole-count", HAL_U32,   HAL_RW, (void*)&inst->pole_count},
+        {"scale",      HAL_FLOAT,  HAL_RW,(void*)&inst->scale},
+
     };
 
 
@@ -273,9 +274,9 @@ int defineHal(hostmot2_t *hm2, hm2_sigma5abs_instance_t* inst, int id) {
         
 
 
-int hm2_sigma5abs_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
+int hm2_sigma5enc_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
     int ret = 0;
-    hm2_sigma5abs_t* sg5 = &hm2->sigma5abs;
+    hm2_sigma5enc_t* sg5 = &hm2->sigma5enc;
 
     tram_creation_data_t td[] = {
         { "control",  false, 0,  &sg5->control_addr,  &sg5->control_reg },
@@ -292,7 +293,7 @@ int hm2_sigma5abs_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
         *td[index].reg = (rtapi_u32*)rtapi_kmalloc(sg5->num_instances * sizeof(rtapi_u32), RTAPI_GFP_KERNEL);
 
         if(NULL == *td[index].reg) {
-            HM2_ERR("sigma5abs: rtapi_kmalloc failed for %s.", td[index].name);
+            HM2_ERR("sigma5enc: rtapi_kmalloc failed for %s.", td[index].name);
             return -1;
         }
 
@@ -300,13 +301,13 @@ int hm2_sigma5abs_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
             ret = hm2_register_tram_read_region(hm2, *td[index].addr, sg5->num_instances * sizeof(rtapi_u32), td[index].reg);
 
             if (ret < 0) {
-                HM2_ERR("sigma5abs: error registering tram read region for register %s (Code: %d)\n", td[index].name, ret);
+                HM2_ERR("sigma5enc: error registering tram read region for register %s (Code: %d)\n", td[index].name, ret);
                 return -1;
             }
         } else {
             ret = hm2_register_tram_write_region(hm2, *td[index].addr, sg5->num_instances * sizeof(rtapi_u32), td[index].reg);
             if (ret < 0) {
-                HM2_ERR("sigma5abs: error registering tram write region for register %s (Code: (%d)\n", td[index].name, ret);
+                HM2_ERR("sigma5enc: error registering tram write region for register %s (Code: (%d)\n", td[index].name, ret);
                 return -1;
             }
         }
@@ -316,7 +317,7 @@ int hm2_sigma5abs_configure_tram(hostmot2_t* hm2, hm2_module_descriptor_t *md) {
 }
 
 
-int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index) 
+int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index) 
 {
     int i, r = -EINVAL;
     hm2_module_descriptor_t *md = &hm2->md[md_index];
@@ -327,7 +328,7 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         return -EINVAL;
     }
     
-    if (hm2->sigma5abs.num_instances > 1 && last_gtag == md->gtag) {
+    if (hm2->sigma5enc.num_instances > 1 && last_gtag == md->gtag) {
         HM2_ERR("found duplicate Module Descriptor for %s (inconsistent firmware), not loading driver %i %i\n",
                 hm2_get_general_function_name(md->gtag), md->gtag, last_gtag);
         return -EINVAL;
@@ -335,14 +336,14 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
 
     last_gtag = md->gtag;
 
-    if (hm2->config.num_sigma5abs > md->instances) {
-        HM2_ERR("config defines %d sigma5abs, but only %d are available, not loading driver\n",
-                hm2->config.num_sigma5abs,
+    if (hm2->config.num_sigma5enc > md->instances) {
+        HM2_ERR("config defines %d sigma5enc, but only %d are available, not loading driver\n",
+                hm2->config.num_sigma5enc,
                 md->instances);
         return -EINVAL;
     }
     
-    if (hm2->config.num_sigma5abs == 0) {
+    if (hm2->config.num_sigma5enc == 0) {
         return 0;
     }
 
@@ -350,27 +351,27 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
     // 
     // looks good, start, or continue, initializing
     // 
-    if (hm2->config.num_sigma5abs == -1) {
-        hm2->sigma5abs.num_instances = md->instances;
+    if (hm2->config.num_sigma5enc == -1) {
+        hm2->sigma5enc.num_instances = md->instances;
     } else {
-        hm2->sigma5abs.num_instances = hm2->config.num_sigma5abs;
+        hm2->sigma5enc.num_instances = hm2->config.num_sigma5enc;
     }
         
-    hm2->sigma5abs.instances = (hm2_sigma5abs_instance_t *)hal_malloc(hm2->sigma5abs.num_instances * sizeof(hm2_sigma5abs_instance_t));
-    if (NULL == hm2->sigma5abs.instances) {
-        HM2_ERR("sigma5abs: out of hal memory!\n");
+    hm2->sigma5enc.instances = (hm2_sigma5enc_instance_t *)hal_malloc(hm2->sigma5enc.num_instances * sizeof(hm2_sigma5enc_instance_t));
+    if (NULL == hm2->sigma5enc.instances) {
+        HM2_ERR("sigma5enc: out of hal memory!\n");
         return -ENOMEM;
     }
 
-    hm2->sigma5abs.instance_stride = md->instance_stride;
+    hm2->sigma5enc.instance_stride = md->instance_stride;
 
-    r = hm2_sigma5abs_configure_tram(hm2, md);
+    r = hm2_sigma5enc_configure_tram(hm2, md);
     if(r < 0) {
         return r;
     }
 
-    for (i = 0 ; i < hm2->sigma5abs.num_instances ; i++){
-        hm2_sigma5abs_instance_t *inst = &hm2->sigma5abs.instances[i];
+    for (i = 0 ; i < hm2->sigma5enc.num_instances ; i++){
+        hm2_sigma5enc_instance_t *inst = &hm2->sigma5enc.instances[i];
 
         if(defineHal(hm2, inst, i) < 0) {
             return -1;
@@ -392,6 +393,7 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         inst->lead_angle = 0.0;
         inst->pole_count = 8;
         inst->ppr = 2097152; //2^21
+        inst->scale = 1.0;
 
         //pins
         *inst->fault = 1;
@@ -401,7 +403,6 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
         *inst->referenced = 0;
         *inst->rotor_angle = 0;
         *inst->run = 1;
-        *inst->scale = 1.0;
         *inst->u = 0;
         *inst->v = 0;
         *inst->velocity = 0;
@@ -434,12 +435,12 @@ int hm2_sigma5abs_parse_md(hostmot2_t *hm2, int md_index)
     }
 	
    
-    return hm2->sigma5abs.num_instances;
+    return hm2->sigma5enc.num_instances;
 }
 
 
-void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
-    hm2_sigma5abs_instance_t* inst;
+void hm2_sigma5enc_prepare_tram_write(hostmot2_t* hm2) {
+    hm2_sigma5enc_instance_t* inst;
     
     //control register
     //bit 0 - enable
@@ -447,29 +448,29 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
     //bit 2 - dppl timer enable
     //bit 8-16 - dpll timer number
 
-    for(int i = 0; i < hm2->sigma5abs.num_instances; i++) {
-        inst = &hm2->sigma5abs.instances[i];
+    for(int i = 0; i < hm2->sigma5enc.num_instances; i++) {
+        inst = &hm2->sigma5enc.instances[i];
         int32_t dpll_timer_num = inst->dpll_timer;
 
 
         if(hm2->dpll_module_present && dpll_timer_num >= 0 && dpll_timer_num <= 4) {
             //enable timer control
-            hm2->sigma5abs.control_reg[i] |= 0x4;
-            //hm2->sigma5abs.timer_reg[i] = dpll_timer_num;
-            hm2->sigma5abs.control_reg[i] = (dpll_timer_num << 8) | (hm2->sigma5abs.control_reg[i] & 0xFFFF00FF);
+            hm2->sigma5enc.control_reg[i] |= 0x4;
+            //hm2->sigma5enc.timer_reg[i] = dpll_timer_num;
+            hm2->sigma5enc.control_reg[i] = (dpll_timer_num << 8) | (hm2->sigma5enc.control_reg[i] & 0xFFFF00FF);
         } else {
             //disable timer control
-            hm2->sigma5abs.control_reg[i] &= ~0x4;
-            hm2->sigma5abs.control_reg[i] &= 0xFFFF00FF;
+            hm2->sigma5enc.control_reg[i] &= ~0x4;
+            hm2->sigma5enc.control_reg[i] &= 0xFFFF00FF;
 
             //alternate transmit bit every cycle to trigger read cycle
-            hm2->sigma5abs.control_reg[i] ^= 0x2;
+            hm2->sigma5enc.control_reg[i] ^= 0x2;
         }
 
         if(*inst->run && (inst->startup || !*inst->fault)) {
-            hm2->sigma5abs.control_reg[i] |= 0x1;
+            hm2->sigma5enc.control_reg[i] |= 0x1;
         } else {
-            hm2->sigma5abs.control_reg[i] &= ~0x1;
+            hm2->sigma5enc.control_reg[i] &= ~0x1;
         }
             
    }
@@ -478,7 +479,7 @@ void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2) {
 
 
 
-void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, int i, hal_float_t fPeriods, const char* prefix) {
+void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, int i, hal_float_t fPeriods, const char* prefix) {
     char register_data[20] = {0};  
   
     hal_bit_t prev_referenced = *inst->referenced;
@@ -507,7 +508,7 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
 
 
     //always report status from fpga
-    *inst->status = (hal_u32_t)hm2->sigma5abs.status_reg[i];
+    *inst->status = (hal_u32_t)hm2->sigma5enc.status_reg[i];
 
 
     if(!*inst->run) {
@@ -531,15 +532,15 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
         }
     }    
     
-    *inst->rx0 = (hal_u32_t)hm2->sigma5abs.rx0_reg[i];
-    *inst->rx1 = (hal_u32_t)hm2->sigma5abs.rx1_reg[i];
-    *inst->rx2 = (hal_u32_t)hm2->sigma5abs.rx2_reg[i];
+    *inst->rx0 = (hal_u32_t)hm2->sigma5enc.rx0_reg[i];
+    *inst->rx1 = (hal_u32_t)hm2->sigma5enc.rx1_reg[i];
+    *inst->rx2 = (hal_u32_t)hm2->sigma5enc.rx2_reg[i];
 
     //copy registers into register_data buffer
     //register data needs to be converted into big endian
-    *(hal_u32_t*)(register_data+(0*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx0_reg[i]);
-    *(hal_u32_t*)(register_data+(1*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx1_reg[i]);
-    *(hal_u32_t*)(register_data+(2*sizeof(hal_u32_t))) = htobe32(hm2->sigma5abs.rx2_reg[i]);
+    *(hal_u32_t*)(register_data+(0*sizeof(hal_u32_t))) = htobe32(hm2->sigma5enc.rx0_reg[i]);
+    *(hal_u32_t*)(register_data+(1*sizeof(hal_u32_t))) = htobe32(hm2->sigma5enc.rx1_reg[i]);
+    *(hal_u32_t*)(register_data+(2*sizeof(hal_u32_t))) = htobe32(hm2->sigma5enc.rx2_reg[i]);
 
 
     *inst->crc = (*inst->status >> 16);
@@ -577,7 +578,7 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     }
     
     //scaled position value for motion controller 
-    if(*inst->scale == 0.0) {
+    if(inst->scale == 0.0) {
         HM2_ERR("%s.scale of 0.0 is invalid.\n", prefix);
         *inst->fault = 1;
         inst->startup = 0;
@@ -697,7 +698,7 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
     dCounts = (rtapi_s64)*inst->raw_count - (rtapi_s64)inst->prev_encoder_count + counter_rollover;
     inst->full_count += dCounts;
     inst->prev_encoder_count = *inst->raw_count;
-    *inst->velocity = (dCounts / *inst->scale) / (hm2->sigma5abs.time - inst->time);
+    *inst->velocity = (dCounts / inst->scale) / (hm2->sigma5enc.time - inst->time);
 
     
     /*
@@ -720,7 +721,7 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
         *inst->index_enable = 0;
     }
     
-    *inst->position = ((hal_float_t)(inst->full_count - inst->index_offset)) / *inst->scale;
+    *inst->position = ((hal_float_t)(inst->full_count - inst->index_offset)) / inst->scale;
 
     if(*inst->fault_count > inst->fault_dec) {
         *inst->fault_count -= inst->fault_dec;
@@ -728,36 +729,36 @@ void hm2_sigma5abs_process_rx(hostmot2_t* hm2, hm2_sigma5abs_instance_t* inst, i
         *inst->fault_count = 0;
     }
 
-    inst->time = hm2->sigma5abs.time;
+    inst->time = hm2->sigma5enc.time;
 }
 
 
 
-void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long periodns) {
-	hm2_sigma5abs_instance_t* inst;
+void hm2_sigma5enc_process_tram_read(hostmot2_t* hm2, long periodns) {
+	hm2_sigma5enc_instance_t* inst;
     char prefix[HAL_NAME_LEN];
     
     hal_float_t fPeriod_s = (hal_float_t)(periodns * 1e-9);
-    hm2->sigma5abs.time += fPeriod_s;
+    hm2->sigma5enc.time += fPeriod_s;
     
 
-    for(int i = 0; i < hm2->sigma5abs.num_instances; i++) {
-        inst = &hm2->sigma5abs.instances[i];
-        rtapi_snprintf(prefix, sizeof(prefix), "%s.sigma5abs.%02d", hm2->llio->name, i);
+    for(int i = 0; i < hm2->sigma5enc.num_instances; i++) {
+        inst = &hm2->sigma5enc.instances[i];
+        rtapi_snprintf(prefix, sizeof(prefix), "%s.sigma5enc.%02d", hm2->llio->name, i);
 
-        hm2_sigma5abs_process_rx(hm2, inst, i, fPeriod_s, prefix);
+        hm2_sigma5enc_process_rx(hm2, inst, i, fPeriod_s, prefix);
     }        
 }
 
 
-void hm2_sigma5abs_print_module(hostmot2_t* hm2) {
-    if (hm2->sigma5abs.num_instances <= 0) return;
-    HM2_PRINT("Sigma5ABS: %d\n", hm2->sigma5abs.num_instances);
-    HM2_PRINT("    Control Addr: 0x%X\n", hm2->sigma5abs.control_addr);
-    HM2_PRINT("    Rx0 Addr: 0x%X\n", hm2->sigma5abs.rx0_addr);
-    HM2_PRINT("    Rx1 Addr: 0x%X\n", hm2->sigma5abs.rx1_addr);
-    HM2_PRINT("    Rx2 Addr: 0x%X\n", hm2->sigma5abs.rx2_addr);
-    HM2_PRINT("    Status Addr: 0x%X\n", hm2->sigma5abs.status_addr);
+void hm2_sigma5enc_print_module(hostmot2_t* hm2) {
+    if (hm2->sigma5enc.num_instances <= 0) return;
+    HM2_PRINT("Sigma5ABS: %d\n", hm2->sigma5enc.num_instances);
+    HM2_PRINT("    Control Addr: 0x%X\n", hm2->sigma5enc.control_addr);
+    HM2_PRINT("    Rx0 Addr: 0x%X\n", hm2->sigma5enc.rx0_addr);
+    HM2_PRINT("    Rx1 Addr: 0x%X\n", hm2->sigma5enc.rx1_addr);
+    HM2_PRINT("    Rx2 Addr: 0x%X\n", hm2->sigma5enc.rx2_addr);
+    HM2_PRINT("    Status Addr: 0x%X\n", hm2->sigma5enc.status_addr);
 }
 
 

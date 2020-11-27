@@ -117,7 +117,7 @@
 #define HM2_GTAG_FABS              (25) 
 #define HM2_GTAG_HM2DPLL           (26)
 #define HM2_GTAG_INMUX             (30)
-#define HM2_GTAG_SIGMA5ABS         (31) 
+#define HM2_GTAG_SIGMA5ENC         (31) 
 #define HM2_GTAG_INM               (35) 
 #define HM2_GTAG_DPAINTER          (42) 
 #define HM2_GTAG_XY2MOD            (43) 
@@ -1189,7 +1189,6 @@ typedef struct {
     hal_bit_t*   referenced;    //true when referenced
     hal_float_t* rotor_angle;   //rotor_angle after lead angle applie
     hal_bit_t*   run;           //enable data exchange to encoder
-    hal_float_t* scale;         //encoder position scale
     hal_bit_t*   u;             //u hall sensor
     hal_bit_t*   v;             //v hall sensor
     hal_float_t* velocity;      //estimated velocity in units per second
@@ -1204,6 +1203,8 @@ typedef struct {
     hal_float_t lead_angle;     //commutation lead angle
     hal_u32_t   pole_count;     //commutation pole count
     hal_u32_t   ppr;            //pulses per revolution of encoder
+    hal_float_t scale;          //encoder position scale
+
     
 
     //internal variables
@@ -1213,7 +1214,7 @@ typedef struct {
     hal_u32_t reference_pole_pair; //rotor turn that reference was found
     hal_bit_t startup;             //true during startup
     hal_float_t time;              //previous time a full cycle was completed
-} hm2_sigma5abs_instance_t;
+} hm2_sigma5enc_instance_t;
 
 
 typedef struct {
@@ -1221,7 +1222,7 @@ typedef struct {
     rtapi_u32 clock_frequency;
 
     int num_instances;
-	hm2_sigma5abs_instance_t *instances;
+	hm2_sigma5enc_instance_t *instances;
 
 	rtapi_u32 instance_stride;
 
@@ -1242,7 +1243,7 @@ typedef struct {
 
     hal_float_t time;
 
-} hm2_sigma5abs_t;
+} hm2_sigma5enc_t;
 	
 
  
@@ -1440,7 +1441,7 @@ typedef struct {
         int num_bspis;
         int num_uarts;
         int num_pktuarts;
-    	int num_sigma5abs;
+    	int num_sigma5enc;
         int num_dplls;
         int num_inmuxs;
         int num_inms;
@@ -1485,7 +1486,7 @@ typedef struct {
     hm2_bspi_t bspi;
     hm2_uart_t uart;
     hm2_pktuart_t pktuart;
-    hm2_sigma5abs_t sigma5abs;
+    hm2_sigma5enc_t sigma5enc;
     hm2_ioport_t ioport;
     hm2_watchdog_t watchdog;
     hm2_dpll_t dpll;
@@ -1741,10 +1742,10 @@ int hm2_pktuart_read(char *name, unsigned char data[],  rtapi_u8 *num_frames, rt
 //
 // Yaskawa Sigma 5 ABS encoder
 //
-int hm2_sigma5abs_parse_md(hostmot2_t* hm2, int md_index);
-void hm2_sigma5abs_prepare_tram_write(hostmot2_t* hm2);
-void hm2_sigma5abs_process_tram_read(hostmot2_t* hm2, long period);
-void hm2_sigma5abs_print_module(hostmot2_t* hm2);
+int hm2_sigma5enc_parse_md(hostmot2_t* hm2, int md_index);
+void hm2_sigma5enc_prepare_tram_write(hostmot2_t* hm2);
+void hm2_sigma5enc_process_tram_read(hostmot2_t* hm2, long period);
+void hm2_sigma5enc_print_module(hostmot2_t* hm2);
 
 
 //
