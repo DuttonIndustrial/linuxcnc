@@ -49,7 +49,7 @@ typedef struct {
 } tram_creation_data_t;
 
 
-//returns a - b (mod)
+//returns modular difference from b to a
 unsigned int modsub(unsigned int a, unsigned int b, unsigned int mod) {
 
     if(a >= b) {
@@ -64,6 +64,17 @@ unsigned int modmed(unsigned int a, unsigned int b, unsigned int mod) {
     unsigned int diff = modsub(a, b, mod)/2;
 
     return (b + diff) % mod;
+}
+
+//returns shortest distance from a to b
+int moddist(unsigned int a, unsigned int b, unsigned int mod) {
+    int s =  modsub(a, b, mod);
+
+    if(s >= (mod / 2)) {
+        return mod - s;
+    } else {
+        return -s;
+    }
 }
 
 
@@ -487,6 +498,7 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     hal_bit_t prev_v = *inst->v;
     hal_bit_t prev_w = *inst->w;
 
+    hal_u32_t prev_z_counter = *inst->z_counter;
 
     int counter_bits = 24; //total number of bits stored in encoder
 
@@ -674,9 +686,6 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     *inst->rotor_angle = ((hal_float_t)comm_count) / ((hal_float_t)rotor_pulses);                         
 
 
-
-
-
     ///////////////////////////////////////////////////////////////////////////
     //compute position data
     ///////////////////////////////////////////////////////////////////////////
@@ -711,13 +720,22 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         inst->reference_pole_pair = raw_angle / rotor_pulses;
     }
 
+    /*
+        once we know reference_pole_pair we can compute reference_angle.
+        The reference angle will change slightly as the real rotor_offset converges over time
+    */
     if(*inst->referenced) {
        *inst->reference_angle = (inst->reference_pole_pair * rotor_pulses) 
                                 + ((*inst->rotor_offset + hallRotorCount(rotor_pulses, 0, 1, 0, 1)) % rotor_pulses);
     }
- 
-    if(*inst->index_enable && *inst->referenced) {
-        inst->index_offset = inst->full_count + modsub(*inst->reference_angle, raw_angle, inst->ppr);
+
+    /*
+        More than a full turn past Z point must occur before the z counter changes. 
+        This prevents erratic homing behavior when the Z hall sensor is close 
+        to the home switch.
+    */
+    if(*inst->index_enable && *inst->referenced && (prev_z_counter != *inst->z_counter)) {
+        inst->index_offset = inst->full_count - moddist(*inst->reference_angle, raw_angle, inst->ppr);
         *inst->index_enable = 0;
     }
     
