@@ -126,12 +126,12 @@ void decode_encoder_packet(char* data,
     *magic2 = extract_bits(data, 7, 10); //unknown
     *slowclock = extract_bits(data, 16, -8); //counts up every 1/5 of a second
     *fastclock = extract_bits(data, 24, -24); //appears to be random data that changes every request
-    *magic3 = extract_bits(data, 48, 8); //unknown
+    *magic3 = extract_bits(data, 48, -8); //unknown
     *encoder_count =  extract_bits(data, 56, -24); //absolute turn counter
     *z =  extract_bits(data, 80, 1); //index 
-    *u =  extract_bits(data, 81,1);  //hall u
-    *v = extract_bits(data, 82, 1);  //hall v
-    *w = extract_bits(data, 83, 1);  //hall w
+    *u =  extract_bits(data, 81, 1);  //hall u
+    *v = extract_bits(data, 82,  1);  //hall v
+    *w = extract_bits(data, 83,  1);  //hall w
     *ref_data = extract_bits(data, 84, -9); //reference data 
     *z_counter = extract_bits(data, 93, -3);  //8 bit z cross counter
 }
@@ -208,7 +208,7 @@ int defineHalParam(hostmot2_t *hm2, int inst, const char* name, hal_type_t type,
 }
 
 
-int defineHal(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
+int defineHalPins(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
     //pins
     pin_creation_data_t pindefs[] = {
         {"debug.any_data",          HAL_BIT,    HAL_OUT, (void**)&inst->any_data},
@@ -222,6 +222,9 @@ int defineHal(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
         {"debug.raw-count",         HAL_U32,    HAL_OUT, (void**)&inst->raw_count},
         {"debug.reference-angle",   HAL_U32,    HAL_OUT, (void**)&inst->reference_angle},
         {"debug.reference-data",    HAL_U32,    HAL_OUT, (void**)&inst->reference_data},
+        {"debug.raw-hall-count",    HAL_U32,    HAL_OUT, (void**)&inst->raw_hall_count},
+        {"debug.raw-rotor-count",    HAL_U32,    HAL_OUT, (void**)&inst->raw_rotor_count},
+        {"debug.rotor-offset-count", HAL_U32,    HAL_OUT, (void**)&inst->rotor_offset_count},
         {"debug.rotor-offset",      HAL_U32,    HAL_OUT, (void**)&inst->rotor_offset},
         {"debug.rotor-offset-max",  HAL_U32,    HAL_OUT, (void**)&inst->rotor_offset_max},
         {"debug.rotor-offset-min",  HAL_U32,    HAL_OUT, (void**)&inst->rotor_offset_min},
@@ -247,11 +250,15 @@ int defineHal(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
 
 
     for(int index = 0; index < sizeof(pindefs)/sizeof(pin_creation_data_t); index++) {
-        if(0 > defineHalPin(hm2, id, pindefs[index].name, pindefs[index].type, pindefs[index].dir, pindefs[index].addr)) {
+       if(0 > defineHalPin(hm2, id, pindefs[index].name, pindefs[index].type, pindefs[index].dir, pindefs[index].addr)) {
             return -1;
         }
     }
 
+    return 0;
+}
+
+int defineHalParams(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
 
     //params
     param_creation_data_t paramdefs[] = {
@@ -384,10 +391,15 @@ int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index)
     for (i = 0 ; i < hm2->sigma5enc.num_instances ; i++){
         hm2_sigma5enc_instance_t *inst = &hm2->sigma5enc.instances[i];
 
-        if(defineHal(hm2, inst, i) < 0) {
+        if(defineHalPins(hm2, inst, i) < 0) {
+            return -1;
+        }
+ 
+       if(defineHalParams(hm2, inst, i) < 0) {
             return -1;
         }
    
+  
         //private variables 
         inst->full_count = 0;
         inst->index_offset = 0;
@@ -413,7 +425,7 @@ int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index)
         *inst->position = 0.0;
         *inst->referenced = 0;
         *inst->rotor_angle = 0;
-        *inst->run = 1;
+        *inst->run = 0;
         *inst->u = 0;
         *inst->v = 0;
         *inst->velocity = 0;
@@ -513,9 +525,9 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     
     rtapi_s64 counter_rollover = 0;
     hal_u32_t raw_angle = 0;
-    hal_u32_t raw_rotor_count = 0;
+//    hal_u32_t raw_rotor_count = 0;
     hal_u32_t rotor_pulses = 0; 
-    hal_u32_t rotor_offset_count = 0;
+//    hal_u32_t rotor_offset_count = 0;
     hal_u32_t comm_count = 0;
 
 
@@ -598,10 +610,15 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     }
     
 
-    if(!*inst->data_valid) {
+   if(!*inst->data_valid) {
         *inst->fault_count += inst->fault_inc;
+
+/*        if(!inst->startup) {
+            HM2_ERR("%s read failure. Fault count now %d\n", prefix, *inst->fault_count);
+        }
+*/
         return;
-    }
+   }
     
 
     decode_encoder_packet(register_data,
@@ -649,26 +666,34 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
 
     lead_angle_counts = (inst->lead_angle * ((hal_float_t)rotor_pulses)) / 360.0;
 
-    raw_rotor_count = *inst->raw_count % rotor_pulses;
+    *inst->raw_rotor_count = *inst->raw_count % rotor_pulses;
 
-    rotor_offset_count = modsub(raw_rotor_count,
-                                hallRotorCount(rotor_pulses, 1, *inst->u, *inst->v, *inst->w),
-                                rotor_pulses);
+    *inst->raw_hall_count = hallRotorCount(rotor_pulses, 1, *inst->u, *inst->v, *inst->w);
+
+    *inst->rotor_offset_count = modsub(*inst->raw_hall_count,
+                                       *inst->raw_rotor_count,
+                                       rotor_pulses);
+
 
     //rotor_offset is difference between real rotor position and relative encoder angle
     //we adjust rotor alignment value continuously as more data points become available
     //look for the highest and lowest known rotor counts within a given hall interval
     if(!prev_u && !prev_v && !prev_w) {
         //for the first cycle initialize starting value to center of known hall position
-        *inst->rotor_offset_min = rotor_offset_count;
-        *inst->rotor_offset_max = rotor_offset_count; 
-    } else {
-        if(modsub(rotor_offset_count, *inst->rotor_offset_max, rotor_pulses) < (rotor_pulses / 2)) {
-            *inst->rotor_offset_max = rotor_offset_count;
+        *inst->rotor_offset_min = *inst->rotor_offset_count;
+        *inst->rotor_offset_max = *inst->rotor_offset_count; 
+    } else if(prev_u == *inst->u && prev_v == *inst->v && prev_w == *inst->w) {
+
+        //only update rotor alignment values when 2 consecutive readings occur in the same hall position.
+        //the hall sensors can sometimes bounce when reading. This can cause the rotor offset values
+        //to be set based upon the wrong hall values.
+
+        if(modsub(*inst->rotor_offset_count, *inst->rotor_offset_max, rotor_pulses) < (rotor_pulses / 6)) {
+            *inst->rotor_offset_max = *inst->rotor_offset_count;
         }
 
-        if(modsub(*inst->rotor_offset_min, rotor_offset_count, rotor_pulses) < (rotor_pulses / 2)) {
-            *inst->rotor_offset_min = rotor_offset_count;
+        if(modsub(*inst->rotor_offset_min, *inst->rotor_offset_count, rotor_pulses) < (rotor_pulses / 6)) {
+            *inst->rotor_offset_min = *inst->rotor_offset_count;
         }
     }
     
@@ -678,7 +703,8 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     
     //rotor position with lead angle added in
     comm_count = ((rotor_pulses << 2) //avoid negative remainder
-                   + modsub(raw_rotor_count, *inst->rotor_offset, rotor_pulses)
+                   + *inst->raw_rotor_count 
+                   + *inst->rotor_offset
                    + lead_angle_counts
                    ) % rotor_pulses;
     
@@ -717,7 +743,17 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
       The current rotor pole pair is all that needs to be known in order to determine the exact z point
     */
     if(!prev_referenced  && *inst->referenced) {
+        
+
         inst->reference_pole_pair = raw_angle / rotor_pulses;
+   /*     HM2_ERR("%s referenced. raw_angle %d. rotor pulses %d. pole_pair %d, reference_base %d hall_base %d\n", 
+                prefix, 
+                raw_angle, 
+                rotor_pulses, 
+                raw_angle/rotor_pulses, 
+                inst->reference_pole_pair * rotor_pulses,
+                hallRotorCount(rotor_pulses, 0, 1, 0, 1)
+                );*/
     }
 
     /*
@@ -725,8 +761,10 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         The reference angle will change slightly as the real rotor_offset converges over time
     */
     if(*inst->referenced) {
-       *inst->reference_angle = (inst->reference_pole_pair * rotor_pulses) 
-                                + ((*inst->rotor_offset + hallRotorCount(rotor_pulses, 0, 1, 0, 1)) % rotor_pulses);
+       *inst->reference_angle = (inst->ppr 
+                                + (inst->reference_pole_pair * rotor_pulses) 
+                                + hallRotorCount(rotor_pulses, 0, 1, 0, 1)
+                                - moddist(rotor_pulses, *inst->rotor_offset, rotor_pulses)) % inst->ppr;
     }
 
     /*
@@ -747,6 +785,8 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         *inst->fault_count = 0;
     }
 
+    //last time the cycle completed to keep velocity mesaurements
+    //accurate if there were read faults
     inst->time = hm2->sigma5enc.time;
 }
 

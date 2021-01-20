@@ -1171,6 +1171,9 @@ typedef struct {
     hal_u32_t* raw_count;      //raw encoder count
     hal_u32_t* reference_angle;
     hal_u32_t* reference_data;
+    hal_u32_t* raw_rotor_count;
+    hal_u32_t* raw_hall_count;
+    hal_u32_t* rotor_offset_count;
     hal_u32_t* rotor_offset; //center of UVW=100 position
     hal_u32_t* rotor_offset_max;   //positive most value of UVW=100
     hal_u32_t* rotor_offset_min;   //negative most value of UVW=100
