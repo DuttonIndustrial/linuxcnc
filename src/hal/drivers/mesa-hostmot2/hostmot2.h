@@ -1169,14 +1169,16 @@ typedef struct {
     hal_u32_t* magic2;
     hal_u32_t* magic3;
     hal_u32_t* raw_count;      //raw encoder count
-    hal_u32_t* reference_angle;
-    hal_u32_t* reference_data;
-    hal_u32_t* raw_rotor_count;
-    hal_u32_t* raw_hall_count;
-    hal_u32_t* rotor_offset_count;
-    hal_u32_t* rotor_offset; //center of UVW=100 position
-    hal_u32_t* rotor_offset_max;   //positive most value of UVW=100
-    hal_u32_t* rotor_offset_min;   //negative most value of UVW=100
+    hal_float_t* raw_angle;    //raw angle of encoder
+    hal_float_t* raw_rotor_angle;
+    hal_float_t *reference_base; //rotor turn that reference was found
+    hal_float_t* reference_angle;
+    hal_u32_t*   reference_data;
+    hal_float_t* rotor_hall_angle;
+    hal_float_t* current_rotor_offset;
+    hal_float_t* rotor_offset;
+    hal_float_t* rotor_offset_pos;
+    hal_float_t* rotor_offset_neg; 
     hal_u32_t* rx0;
     hal_u32_t* rx1;
     hal_u32_t* rx2;
@@ -1190,7 +1192,8 @@ typedef struct {
     hal_bit_t*   index_enable;  //encoder index pin
     hal_float_t* position;      //encoder position in scaled units
     hal_bit_t*   referenced;    //true when referenced
-    hal_float_t* rotor_angle;   //rotor_angle after lead angle applie
+    hal_float_t* rotor_angle;   //rotor_angle after lead angle applied
+    hal_float_t* angle;         //real encoder angle from index point
     hal_bit_t*   run;           //enable data exchange to encoder
     hal_bit_t*   u;             //u hall sensor
     hal_bit_t*   v;             //v hall sensor
@@ -1199,7 +1202,7 @@ typedef struct {
     hal_bit_t*   z;             //index hall sensor
         
     //params
-    hal_s32_t   dpll_timer; 
+    hal_s32_t   dpll_timer;
     hal_u32_t   fault_dec;
     hal_u32_t   fault_inc;
     hal_u32_t   fault_lim;
@@ -1214,7 +1217,6 @@ typedef struct {
     rtapi_s64 full_count;          //full relative position count
     rtapi_s64 index_offset;        //offset of simulated index position
     hal_u32_t prev_encoder_count;  //previous rel encoder count
-    hal_u32_t reference_pole_pair; //rotor turn that reference was found
     hal_bit_t startup;             //true during startup
     hal_float_t time;              //previous time a full cycle was completed
 } hm2_sigma5enc_instance_t;
