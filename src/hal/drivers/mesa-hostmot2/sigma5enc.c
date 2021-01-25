@@ -678,7 +678,7 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         //for the first cycle initialize starting value to center of known hall position
         *inst->rotor_offset_neg = *inst->current_rotor_offset;
         *inst->rotor_offset_pos = *inst->current_rotor_offset;
-    } else {
+    } else if(prev_u == *inst->u && prev_v == *inst->v && prev_w == *inst->w) {
         //if current_rotor_offset is more positive than rotor_offset_pos
         //we update it
         if(angle_diff(*inst->rotor_offset_pos, *inst->current_rotor_offset) > 0.0) {
