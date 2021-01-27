@@ -26,6 +26,8 @@
 #include "regex.h"
 
 
+#define hall_filter_max 5
+
 typedef struct {
     char name[HAL_NAME_LEN];
     hal_type_t type;
@@ -85,7 +87,11 @@ hal_float_t angle_med(hal_float_t a, hal_float_t b) {
 }
 
 hal_float_t rotor_angle_to_angle(hal_float_t rotor_angle, unsigned int pole_count) {
-    return rotor_angle / (pole_count / 2);
+    return rotor_angle / (hal_float_t)(pole_count / 2);
+}
+
+hal_float_t angle_to_rotor_angle(hal_float_t angle, unsigned int pole_count) {
+    return fmod(angle * (hal_float_t)(pole_count / 2), 1.0);
 }
 
 
@@ -419,6 +425,7 @@ int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index)
         inst->index_offset = 0;
         inst->prev_encoder_count = 0;
         *inst->reference_base = 0;
+        inst->hall_filter_count = hall_filter_max;
         inst->startup = 1;
         inst->time = 0;
 
@@ -666,9 +673,15 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
 
     *inst->raw_angle = (hal_float_t)(*inst->raw_count % inst->ppr) / (hal_float_t)inst->ppr;
 
-    *inst->raw_rotor_angle = fmod(*inst->raw_angle * (hal_float_t)(inst->pole_count / 2), 1.0);
+    *inst->raw_rotor_angle = angle_to_rotor_angle(*inst->raw_angle, inst->pole_count);
 
-    //the angle at the center of the current hall values
+    if(prev_u != *inst->u || prev_v != *inst->v || prev_w != *inst->w) {
+        inst->hall_filter_count = hall_filter_max;
+    } else if(inst->hall_filter_count > 0) {
+        inst->hall_filter_count -= 1;
+    }
+
+    //otherwise pick the center of the rotor angle
     *inst->rotor_hall_angle = hallRotorAngle(1, *inst->u, *inst->v, *inst->w);
     
     //raw_rotor_angle + current_rotor_offset = rotor_hall_angle
@@ -678,7 +691,7 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         //for the first cycle initialize starting value to center of known hall position
         *inst->rotor_offset_neg = *inst->current_rotor_offset;
         *inst->rotor_offset_pos = *inst->current_rotor_offset;
-    } else if(prev_u == *inst->u && prev_v == *inst->v && prev_w == *inst->w) {
+    } else if(inst->hall_filter_count == 0) {
         //if current_rotor_offset is more positive than rotor_offset_pos
         //we update it
         if(angle_diff(*inst->rotor_offset_pos, *inst->current_rotor_offset) > 0.0) {
@@ -689,6 +702,12 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         if(angle_diff(*inst->rotor_offset_neg, *inst->current_rotor_offset) < 0.0) {
             *inst->rotor_offset_neg = *inst->current_rotor_offset;
         } 
+    }
+
+    if(angle_diff(*inst->rotor_offset_pos, *inst->rotor_offset_neg) > 0.125) {
+        *inst->fault = 1;
+        HM2_ERR("%s rotor offset appears to have jumped.\n", prefix);
+        return;
     }
 
     //real rotor offset is centered between rotor offset pos and neg
@@ -725,17 +744,19 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     //  when the encoder first powers on it does not know where the index point is until the encoder
     //  crosses the Z point.
     //  The z point is always at rotor position low edge of UVW(101).
-    //  The current rotor pole pair is all that needs to be known in order to determine the exact z point
     if(!prev_referenced  && *inst->referenced) {
-          *inst->reference_angle = fmod(1.0 
-                                        + *inst->raw_angle
-                                        - (angle_diff(hallRotorAngle(0, 1, 0, 1), *inst->rotor_angle)/(hal_float_t)(inst->pole_count / 2)),
-                                        1.0);
+          *inst->reference_base = floor(*inst->raw_angle * (hal_float_t)(inst->pole_count/2)) / (hal_float_t)(inst->pole_count/2);
     }
 
     //    once we know reference_pole_pair we can compute reference_angle.
     //    The reference angle will change slightly as the real rotor_offset converges over time
     if(*inst->referenced) {
+
+      *inst->reference_angle = fmod(1.0 
+                                    + *inst->reference_base
+                                    + rotor_angle_to_angle(fmod(1.0 + hallRotorAngle(0, 1, 0, 1)-*inst->rotor_offset, 1.0), inst->pole_count),
+                                    1.0);
+
        *inst->angle = fmod(1.0 + *inst->raw_angle - *inst->reference_angle, 1.0);
     }
 
@@ -744,7 +765,6 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     //   This prevents erratic homing behavior when the Z hall sensor is close 
     //    to the home switch.
     if(*inst->index_enable && *inst->referenced && (prev_z_counter != *inst->z_counter)) {
-       //todo 
         inst->index_offset = inst->full_count - (inst->ppr * angle_diff(*inst->reference_angle, *inst->raw_angle));
         *inst->index_enable = 0;
     }

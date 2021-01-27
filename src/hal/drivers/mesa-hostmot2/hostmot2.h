@@ -1217,6 +1217,7 @@ typedef struct {
     rtapi_s64 full_count;          //full relative position count
     rtapi_s64 index_offset;        //offset of simulated index position
     hal_u32_t prev_encoder_count;  //previous rel encoder count
+    hal_u32_t hall_filter_count;   //consecutive cycles where hall remains the same
     hal_bit_t startup;             //true during startup
     hal_float_t time;              //previous time a full cycle was completed
 } hm2_sigma5enc_instance_t;
