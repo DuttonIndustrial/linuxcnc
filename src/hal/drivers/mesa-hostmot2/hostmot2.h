@@ -1160,40 +1160,40 @@ typedef struct {
 typedef struct {
 
     //debug pins    
-    hal_bit_t* any_data;      //true when any data has been received     
-    hal_bit_t* busy;          //true if encoder data transmission has not completed at time of read
-    hal_u32_t* crc;           //crc value calculated by fpga
-    hal_bit_t* data_valid;    //true when fpga determines that data is valid
-    hal_u32_t* fastclock;
-    hal_u32_t* magic1;
-    hal_u32_t* magic2;
-    hal_u32_t* magic3;
-    hal_u32_t* raw_count;      //raw encoder count
-    hal_float_t* raw_angle;    //raw angle of encoder
-    hal_float_t* raw_rotor_angle;
-    hal_float_t *reference_base; //rotor turn that reference was found
-    hal_float_t* reference_angle;
-    hal_u32_t*   reference_data;
-    hal_float_t* rotor_hall_angle;
-    hal_float_t* current_rotor_offset;
-    hal_float_t* rotor_offset;
-    hal_float_t* rotor_offset_pos;
-    hal_float_t* rotor_offset_neg; 
-    hal_u32_t* rx0;
-    hal_u32_t* rx1;
-    hal_u32_t* rx2;
-    hal_u32_t* slowclock;
-    hal_u32_t* status;        //status data returned from hostmot2
-    hal_u32_t* z_counter;
+    hal_bit_t*   any_data;         //true when any data has been received     
+    hal_bit_t*   busy;             //true if encoder data transmission has not completed at time of read
+    hal_u32_t*   crc;              //crc value calculated by fpga
+    hal_bit_t*   data_valid;       //true when fpga determines that data is valid
+    hal_u32_t*   fastclock;
+    hal_u32_t*   magic1;
+    hal_u32_t*   magic2;
+    hal_u32_t*   magic3;
+    hal_u32_t*   raw_count;        //raw encoder count
+    hal_float_t* raw_angle;        //raw angle of encoder
+    hal_float_t* raw_rotor_angle;  //raw rotor angle
+    hal_float_t* reference_base;   //angle that reference was found
+    hal_float_t* reference_angle;  //raw angle of index position
+    hal_u32_t*   reference_data;   
+    hal_float_t* hall_angle;       //center angle of current hall values
+    hal_float_t* raw_rotor_offset; //current difference between hall_angle and raw_rotor_angle
+    hal_float_t* rotor_offset;     //actual difference between raw_rotor_angle and rotor_angle
+    hal_float_t* rotor_offset_pos; //positive most difference between hall_angle and raw_rotor_offset
+    hal_float_t* rotor_offset_neg; //negative most difference between hall_angle and raw_rotor_offset
+    hal_u32_t*   rx0;              //bytes 1-4 of raw received data
+    hal_u32_t*   rx1;              //bytes 5-8 of raw received data
+    hal_u32_t*   rx2;              //bytes 9-12 of raw received data
+    hal_u32_t*   slowclock;
+    hal_u32_t*   status;            //status data returned from hostmot2
+    hal_u32_t*   z_counter;         //de/increments after passing z hall sensor
 
     //pins
-    hal_bit_t*   fault;
-    hal_u32_t*   fault_count;
+    hal_float_t* angle;         //real encoder angle from index point
+    hal_bit_t*   fault;         //fault has occured
+    hal_u32_t*   fault_count;   //current fault counter
     hal_bit_t*   index_enable;  //encoder index pin
     hal_float_t* position;      //encoder position in scaled units
     hal_bit_t*   referenced;    //true when referenced
-    hal_float_t* rotor_angle;   //rotor_angle after lead angle applied
-    hal_float_t* angle;         //real encoder angle from index point
+    hal_float_t* rotor_angle;   //commutation rotor angle
     hal_bit_t*   run;           //enable data exchange to encoder
     hal_bit_t*   u;             //u hall sensor
     hal_bit_t*   v;             //v hall sensor
@@ -1206,7 +1206,6 @@ typedef struct {
     hal_u32_t   fault_dec;
     hal_u32_t   fault_inc;
     hal_u32_t   fault_lim;
-    hal_float_t lead_angle;     //commutation lead angle
     hal_u32_t   pole_count;     //commutation pole count
     hal_u32_t   ppr;            //pulses per revolution of encoder
     hal_float_t scale;          //encoder position scale

@@ -241,9 +241,9 @@ int defineHalPins(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
         {"debug.reference-base",    HAL_FLOAT,    HAL_OUT, (void**)&inst->reference_base},
         {"debug.reference-angle",   HAL_FLOAT,  HAL_OUT, (void**)&inst->reference_angle},
         {"debug.reference-data",    HAL_U32,    HAL_OUT, (void**)&inst->reference_data},
-        {"debug.rotor-hall-angle",  HAL_FLOAT,    HAL_OUT, (void**)&inst->rotor_hall_angle},
+        {"debug.hall-angle",        HAL_FLOAT,    HAL_OUT, (void**)&inst->hall_angle},
         {"debug.raw-rotor-angle",   HAL_FLOAT,    HAL_OUT, (void**)&inst->raw_rotor_angle},
-        {"debug.current-rotor-offset", HAL_FLOAT, HAL_OUT, (void**)&inst->current_rotor_offset},
+        {"debug.raw-rotor-offset",  HAL_FLOAT, HAL_OUT, (void**)&inst->raw_rotor_offset},
         {"debug.rotor-offset",      HAL_FLOAT,    HAL_OUT, (void**)&inst->rotor_offset},
         {"debug.rotor-offset-pos",  HAL_FLOAT,    HAL_OUT, (void**)&inst->rotor_offset_pos},
         {"debug.rotor-offset-neg",  HAL_FLOAT,    HAL_OUT, (void**)&inst->rotor_offset_neg},
@@ -286,7 +286,6 @@ int defineHalParams(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
         {"fault-inc",  HAL_U32,   HAL_RW, (void*)&inst->fault_inc},
         {"fault-dec",  HAL_U32,   HAL_RW, (void*)&inst->fault_dec},
         {"fault-lim",  HAL_U32,   HAL_RW, (void*)&inst->fault_lim},
-        {"lead-angle", HAL_FLOAT, HAL_RW, (void*)&inst->lead_angle},
         {"pole-count", HAL_U32,   HAL_RW, (void*)&inst->pole_count},
         {"scale",      HAL_FLOAT,  HAL_RW,(void*)&inst->scale},
 
@@ -434,7 +433,6 @@ int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index)
         inst->fault_dec = 1;
         inst->fault_inc = 10;
         inst->fault_lim = 200;
-        inst->lead_angle = 0.0;
         inst->pole_count = 8;
         inst->ppr = 2097152; //2^21
         inst->scale = 1.0;
@@ -610,13 +608,6 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         return;
     }
 
-    if(fabs(inst->lead_angle) > 180.0) {
-        HM2_ERR("%s.lead_angle = %f value must be between -180.0 and 180.0 .\n", prefix, inst->lead_angle);
-        *inst->fault = 1;
-        inst->startup = 0;
-        return;
-    }
-    
     //scaled position value for motion controller 
     if(inst->scale == 0.0) {
         HM2_ERR("%s.scale of 0.0 is invalid.\n", prefix);
@@ -682,25 +673,25 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     }
 
     //otherwise pick the center of the rotor angle
-    *inst->rotor_hall_angle = hallRotorAngle(1, *inst->u, *inst->v, *inst->w);
+    *inst->hall_angle = hallRotorAngle(1, *inst->u, *inst->v, *inst->w);
     
-    //raw_rotor_angle + current_rotor_offset = rotor_hall_angle
-    *inst->current_rotor_offset = angle_diff(*inst->raw_rotor_angle, *inst->rotor_hall_angle);
+    //raw_rotor_angle + raw_rotor_offset = hall_angle
+    *inst->raw_rotor_offset = angle_diff(*inst->raw_rotor_angle, *inst->hall_angle);
 
     if(!prev_u && !prev_v && !prev_w) {
         //for the first cycle initialize starting value to center of known hall position
-        *inst->rotor_offset_neg = *inst->current_rotor_offset;
-        *inst->rotor_offset_pos = *inst->current_rotor_offset;
+        *inst->rotor_offset_neg = *inst->raw_rotor_offset;
+        *inst->rotor_offset_pos = *inst->raw_rotor_offset;
     } else if(inst->hall_filter_count == 0) {
         //if current_rotor_offset is more positive than rotor_offset_pos
         //we update it
-        if(angle_diff(*inst->rotor_offset_pos, *inst->current_rotor_offset) > 0.0) {
-            *inst->rotor_offset_pos = *inst->current_rotor_offset;
+        if(angle_diff(*inst->rotor_offset_pos, *inst->raw_rotor_offset) > 0.0) {
+            *inst->rotor_offset_pos = *inst->raw_rotor_offset;
         } 
 
         //if current rotor offset is more negative than rotor_offset_neg we update it
-        if(angle_diff(*inst->rotor_offset_neg, *inst->current_rotor_offset) < 0.0) {
-            *inst->rotor_offset_neg = *inst->current_rotor_offset;
+        if(angle_diff(*inst->rotor_offset_neg, *inst->raw_rotor_offset) < 0.0) {
+            *inst->rotor_offset_neg = *inst->raw_rotor_offset;
         } 
     }
 
