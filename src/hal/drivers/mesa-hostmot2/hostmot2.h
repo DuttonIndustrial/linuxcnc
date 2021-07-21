@@ -1171,8 +1171,8 @@ typedef struct {
     hal_u32_t*   raw_count;        //raw encoder count
     hal_float_t* raw_angle;        //raw angle of encoder
     hal_float_t* raw_rotor_angle;  //raw rotor angle
-    hal_float_t* reference_base;   //angle that reference was found
-    hal_float_t* reference_angle;  //raw angle of index position
+    hal_float_t* raw_ref_base;     //raw angle at which reference was first seen
+    hal_float_t* raw_ref_angle;    //actual raw angle of reference point
     hal_u32_t*   reference_data;   
     hal_float_t* hall_angle;       //center angle of current hall values
     hal_float_t* raw_rotor_offset; //current difference between hall_angle and raw_rotor_angle
