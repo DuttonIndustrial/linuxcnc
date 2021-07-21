@@ -117,8 +117,9 @@
 #define HM2_GTAG_DDMA              (23) // Not supported
 #define HM2_GTAG_BISS              (24) 
 #define HM2_GTAG_FABS              (25) 
-#define HM2_GTAG_HM2DPLL           (26) 
-#define HM2_GTAG_INMUX             (30) 
+#define HM2_GTAG_HM2DPLL           (26)
+#define HM2_GTAG_INMUX             (30)
+#define HM2_GTAG_SIGMA5ENC         (31) 
 #define HM2_GTAG_INM               (35) 
 #define HM2_GTAG_DPAINTER          (42) 
 #define HM2_GTAG_XY2MOD            (43) 
@@ -1247,6 +1248,106 @@ typedef struct {
     rtapi_u8 num_registers;
     struct rtapi_heap *heap;
 } hm2_pktuart_t;
+
+
+
+//Yaskawa Sigma 5 Absolute encoder
+
+typedef struct {
+
+    //debug pins    
+    hal_bit_t*   any_data;         //true when any data has been received     
+    hal_bit_t*   busy;             //true if encoder data transmission has not completed at time of read
+    hal_u32_t*   crc;              //crc value calculated by fpga
+    hal_bit_t*   data_valid;       //true when fpga determines that data is valid
+    hal_u32_t*   fastclock;
+    hal_u32_t*   magic1;
+    hal_u32_t*   magic2;
+    hal_u32_t*   magic3;
+    hal_u32_t*   raw_count;        //raw encoder count
+    hal_float_t* raw_angle;        //raw angle of encoder
+    hal_float_t* raw_rotor_angle;  //raw rotor angle
+    hal_float_t* raw_ref_base;     //raw angle at which reference was first seen
+    hal_float_t* raw_ref_angle;    //actual raw angle of reference point
+    hal_u32_t*   reference_data;   
+    hal_float_t* hall_angle;       //center angle of current hall values
+    hal_float_t* raw_rotor_offset; //current difference between hall_angle and raw_rotor_angle
+    hal_float_t* rotor_offset;     //actual difference between raw_rotor_angle and rotor_angle
+    hal_float_t* rotor_offset_pos; //positive most difference between hall_angle and raw_rotor_offset
+    hal_float_t* rotor_offset_neg; //negative most difference between hall_angle and raw_rotor_offset
+    hal_u32_t*   rx0;              //bytes 1-4 of raw received data
+    hal_u32_t*   rx1;              //bytes 5-8 of raw received data
+    hal_u32_t*   rx2;              //bytes 9-12 of raw received data
+    hal_u32_t*   slowclock;
+    hal_u32_t*   status;            //status data returned from hostmot2
+    hal_u32_t*   z_counter;         //de/increments after passing z hall sensor
+
+    //pins
+    hal_float_t* angle;         //real encoder angle from index point
+    hal_bit_t*   fault;         //fault has occured
+    hal_u32_t*   fault_count;   //current fault counter
+    hal_bit_t*   index_enable;  //encoder index pin
+    hal_float_t* position;      //encoder position in scaled units
+    hal_bit_t*   referenced;    //true when referenced
+    hal_float_t* rotor_angle;   //commutation rotor angle
+    hal_bit_t*   run;           //enable data exchange to encoder
+    hal_bit_t*   u;             //u hall sensor
+    hal_bit_t*   v;             //v hall sensor
+    hal_float_t* velocity;      //estimated velocity in units per second
+    hal_bit_t*   w;             //w hall sensor
+    hal_bit_t*   z;             //index hall sensor
+        
+    //params
+    hal_s32_t   dpll_timer;
+    hal_u32_t   fault_dec;
+    hal_u32_t   fault_inc;
+    hal_u32_t   fault_lim;
+    hal_u32_t   pole_count;     //commutation pole count
+    hal_u32_t   ppr;            //pulses per revolution of encoder
+    hal_float_t scale;          //encoder position scale
+
+    
+
+    //internal variables
+    rtapi_s64 full_count;          //full relative position count
+    rtapi_s64 index_offset;        //offset of simulated index position
+    hal_u32_t prev_encoder_count;  //previous rel encoder count
+    hal_u32_t hall_filter_count;   //consecutive cycles where hall remains the same
+    hal_bit_t startup;             //true during startup
+    hal_float_t time;              //previous time a full cycle was completed
+} hm2_sigma5enc_instance_t;
+
+
+typedef struct {
+
+    rtapi_u32 clock_frequency;
+
+    int num_instances;
+	hm2_sigma5enc_instance_t *instances;
+
+	rtapi_u32 instance_stride;
+
+	rtapi_u32 control_addr;
+	rtapi_u32* control_reg;
+
+    rtapi_u32 rx0_addr;
+    rtapi_u32* rx0_reg;
+
+    rtapi_u32 rx1_addr;
+    rtapi_u32* rx1_reg;
+
+    rtapi_u32 rx2_addr;
+    rtapi_u32* rx2_reg;
+
+    rtapi_u32 status_addr;
+    rtapi_u32* status_reg;
+
+    hal_float_t time;
+
+} hm2_sigma5enc_t;
+	
+
+ 
 //
 // HM2DPLL
 //
@@ -1442,6 +1543,7 @@ typedef struct {
         int num_bspis;
         int num_uarts;
         int num_pktuarts;
+    	int num_sigma5enc;
         int num_dplls;
         int num_inmuxs;
         int num_inms;
@@ -1487,6 +1589,7 @@ typedef struct {
     hm2_bspi_t bspi;
     hm2_uart_t uart;
     hm2_pktuart_t pktuart;
+    hm2_sigma5enc_t sigma5enc;
     hm2_ioport_t ioport;
     hm2_watchdog_t watchdog;
     hm2_dpll_t dpll;
@@ -1752,6 +1855,16 @@ void hm2_pktuart_process_tram_read(hostmot2_t *hm2, long period);  //  ??
 int hm2_pktuart_setup(char *name, int bitrate, rtapi_s32 tx_mode, rtapi_s32 rx_mode, int txclear, int rxclear);
 int hm2_pktuart_send(char *name,  unsigned char data[], rtapi_u8 *num_frames, rtapi_u16 frame_sizes[]);
 int hm2_pktuart_read(char *name, unsigned char data[],  rtapi_u8 *num_frames, rtapi_u16 *max_frame_length, rtapi_u16 frame_sizes[]);
+
+
+//
+// Yaskawa Sigma 5 ABS encoder
+//
+int hm2_sigma5enc_parse_md(hostmot2_t* hm2, int md_index);
+void hm2_sigma5enc_prepare_tram_write(hostmot2_t* hm2);
+void hm2_sigma5enc_process_tram_read(hostmot2_t* hm2, long period);
+void hm2_sigma5enc_print_module(hostmot2_t* hm2);
+
 
 //
 // hm2dpll functions

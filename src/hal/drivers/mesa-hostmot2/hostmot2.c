@@ -44,13 +44,13 @@ MODULE_LICENSE("GPL");
 
 
 
-int debug_idrom = 0;
+int debug_idrom = 1;
 RTAPI_MP_INT(debug_idrom, "Developer/debug use only!  Enable debug logging of the HostMot2\nIDROM header.");
 
-int debug_module_descriptors = 0;
+int debug_module_descriptors = 1;
 RTAPI_MP_INT(debug_module_descriptors, "Developer/debug use only!  Enable debug logging of the HostMot2\nModule Descriptors.");
 
-int debug_modules = 0;
+int debug_modules = 1;
 RTAPI_MP_INT(debug_modules, "Developer/debug use only!  Enable debug logging of the HostMot2\nModules used.");
 
 int use_serial_numbers = 0;
@@ -114,6 +114,7 @@ static void hm2_read(void *void_hm2, long period) {
     hm2_sserial_process_tram_read(hm2, period);
     hm2_bspi_process_tram_read(hm2, period);
     hm2_absenc_process_tram_read(hm2, period);
+    hm2_sigma5enc_process_tram_read(hm2, period);
     //UARTS PktUARTS need to be explicity handled by an external component
 
     hm2_tp_pwmgen_process_read(hm2); // check the status of the fault bit
@@ -143,6 +144,7 @@ static void hm2_write(void *void_hm2, long period) {
     hm2_sserial_prepare_tram_write(hm2, period);
     hm2_bspi_prepare_tram_write(hm2, period);
     hm2_ssr_prepare_tram_write(hm2);
+    hm2_sigma5enc_prepare_tram_write(hm2);
     //UARTS need to be explicity handled by an external component
     hm2_tram_write(hm2);
 
@@ -309,6 +311,7 @@ const char *hm2_get_general_function_name(int gtag) {
         case HM2_GTAG_UART_TX:         return "UART Transmit Channel";
         case HM2_GTAG_PKTUART_RX:      return "PktUART Receive Channel";
         case HM2_GTAG_PKTUART_TX:      return "PktUART Transmit Channel";
+	    case HM2_GTAG_SIGMA5ENC:       return "Yaskawa Sigma 5 Encoder";
         case HM2_GTAG_HM2DPLL:         return "Hostmot2 DPLL";
         case HM2_GTAG_INMUX:           return "InMux Input Mux";
         case HM2_GTAG_INM:             return "InM Input Module";
@@ -391,6 +394,7 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     hm2->config.num_xy2mods = -1;
     hm2->config.num_leds = -1;
     hm2->config.num_ssrs = -1;
+    hm2->config.num_sigma5enc = -1;
     hm2->config.enable_raw = 0;
     hm2->config.firmware = NULL;
 
@@ -511,6 +515,9 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
             token += 10;
             hm2->config.num_dplls = simple_strtol(token, NULL, 0);
 
+        } else if (strncmp(token, "num_sigma5enc=", 14) == 0) {
+            token += 14;
+            hm2->config.num_sigma5enc = simple_strtol(token, NULL, 0);
         } else if (strncmp(token, "enable_raw", 10) == 0) {
             hm2->config.enable_raw = 1;
 
@@ -549,6 +556,7 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     HM2_DBG("    num_bspis=%d\n", hm2->config.num_bspis);
     HM2_DBG("    num_uarts=%d\n", hm2->config.num_uarts);
     HM2_DBG("    num_pktuarts=%d\n", hm2->config.num_pktuarts);
+    HM2_DBG("    num_sigma5enc=%d\n", hm2->config.num_sigma5enc);
     HM2_DBG("    enable_raw=%d\n",   hm2->config.enable_raw);
     HM2_DBG("    firmware=%s\n",   hm2->config.firmware ? hm2->config.firmware : "(NULL)");
 
@@ -1033,6 +1041,10 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
           case HM2_GTAG_RCPWMGEN:
                 md_accepted = hm2_rcpwmgen_parse_md(hm2, md_index);
                 break;
+                
+          case HM2_GTAG_SIGMA5ENC:
+        	md_accepted = hm2_sigma5enc_parse_md(hm2, md_index);
+        	break;
 
             default:
                 HM2_WARN(
@@ -1131,6 +1143,7 @@ void hm2_print_modules(hostmot2_t *hm2) {
     hm2_inm_print_module(hm2);
     hm2_xy2mod_print_module(hm2);
     hm2_rcpwmgen_print_module(hm2);
+    hm2_sigma5enc_print_module(hm2);
 }
 
 

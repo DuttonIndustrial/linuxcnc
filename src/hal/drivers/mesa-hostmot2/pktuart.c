@@ -407,7 +407,7 @@ int hm2_pktuart_read(char *name, unsigned char data[], rtapi_u8 *num_frames, rta
     }
 
     if (countp==0){ 
-        HM2_ERR_NO_LL("%s: no new frames \n", name);            
+        //HM2_ERR_NO_LL("%s: no new frames \n", name);            
         return 0;       // return zero bytes
     }
 
