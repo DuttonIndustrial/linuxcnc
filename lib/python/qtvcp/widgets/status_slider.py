@@ -15,6 +15,8 @@
 #
 #################################################################################
 
+import hal
+
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtProperty
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
@@ -39,6 +41,7 @@ class StatusSlider(QtWidgets.QSlider, _HalWidgetBase):
     def __init__(self, parent=None):
         super(StatusSlider, self).__init__(parent)
         self._block_signal = False
+        self._halpin_option = True
         self.rapid = True
         self.feed = False
         self.spindle = False
@@ -46,10 +49,10 @@ class StatusSlider(QtWidgets.QSlider, _HalWidgetBase):
         self.jograte_angular = False
         self.max_velocity = False
 
-        # for syslesheet dybamic property
+        # for syslesheet dynamic property
         self._alertState = ''
-        self._alertOver = 100
-        self._alertUnder = 50
+        self._alertOver = 100.0
+        self._alertUnder = 50.0
 
     def _hal_init(self):
         STATUS.connect('state-estop', lambda w: self.setEnabled(False))
@@ -75,13 +78,34 @@ class StatusSlider(QtWidgets.QSlider, _HalWidgetBase):
         else:
             LOG.error('{} : no option recognised'.format(self.HAL_NAME_))
 
+        if self._halpin_option:
+            if self._pin_name_ == '':
+                pname = self.HAL_NAME_
+            else:
+                pname = self._pin_name_
+            self.hal_pin = self.HAL_GCOMP_.newpin(str(pname), hal.HAL_FLOAT, hal.HAL_OUT)
+
         # connect a signal and callback function to the button
         self.valueChanged.connect(self._action)
         # If the widget uses dynamic properties in stylesheet...
         self._style_polish(state= self.get_alert_cmd(self.value()))
 
+    # catch any programmed settings and update HAL pin
+    def setValue(self, v):
+        super(StatusSlider, self).setValue(v)
+        if self._halpin_option:
+            self.hal_pin.set(v)
+
+    # catch any programmed settings and update HAL pin
+    def setValue(self, v):
+        super(StatusSlider, self).setValue(v)
+        if self._halpin_option:
+            self.hal_pin.set(v)
+
     def _action(self, value):
         self._style_polish(state= self.get_alert_cmd(value))
+        if self._halpin_option:
+            self.hal_pin.set(value)
         if self.rapid:
             ACTION.SET_RAPID_RATE(value)
         elif self.feed:
@@ -107,7 +131,7 @@ class StatusSlider(QtWidgets.QSlider, _HalWidgetBase):
             return'normal'
 
     # polish widget so stylesheet sees the property change
-    # some stylessheets color the widget based on the abritrary hi/lo range
+    # some stylesheets color the widget based on the arbitrary hi/lo range
     def _style_polish(self, prop = 'alertState',state = 'normal'):
         if self._alertState != state:
             self.setProperty(prop, state)
@@ -184,6 +208,22 @@ class StatusSlider(QtWidgets.QSlider, _HalWidgetBase):
     def resetmax_velocity(self):
         self.max_velocity = False
 
+    def set_halpin_option(self, value):
+        self._halpin_option = value
+    def get_halpin_option(self):
+        return self._halpin_option
+    def reset_halpin_option(self):
+        self._halpin_option = True
+
+    def set_pin_name(self, value):
+        self._pin_name_ = value
+    def get_pin_name(self):
+        return self._pin_name_
+    def reset_pin_name(self):
+        self._pin_name_ = ''
+
+    pin_name = pyqtProperty(str, get_pin_name, set_pin_name, reset_pin_name)
+    halpin_option = pyqtProperty(bool, get_halpin_option, set_halpin_option, reset_halpin_option)
     rapid_rate = pyqtProperty(bool, getrapid, setrapid, resetrapid)
     feed_rate = pyqtProperty(bool, getfeed, setfeed, resetfeed)
     spindle_rate = pyqtProperty(bool, getspindle, setspindle, resetspindle)
@@ -195,7 +235,24 @@ class StatusSlider(QtWidgets.QSlider, _HalWidgetBase):
         self._alertState = data
     def getAlertState(self):
         return self._alertState
+
+    def setAlertUnder(self, data):
+        self._alertUnder = data
+    def getAlertUnder(self):
+        return self._alertUnder
+    def resetAlertUnder(self):
+        self._alertUnder = 50.0
+
+    def setAlertOver(self, data):
+        self._alertOver = data
+    def getAlertOver(self):
+        return self._alertOver
+    def resetAlertOver(self):
+        self._alertOver = 100.0
+
     alertState = pyqtProperty(str, getAlertState, setAlertState)
+    alertUnder = pyqtProperty(float, getAlertUnder, setAlertUnder, resetAlertUnder)
+    alertOver = pyqtProperty(float, getAlertOver, setAlertOver, resetAlertOver)
 
     ##############################
     # required class boiler code #

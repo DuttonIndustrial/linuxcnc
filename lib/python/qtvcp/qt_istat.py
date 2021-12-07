@@ -87,6 +87,13 @@ class _IStat(object):
         self.PROGRAM_PREFIX = self.get_error_safe_setting("DISPLAY", "PROGRAM_PREFIX", '~/linuxcnc/nc_files')
         if not os.path.exists(os.path.expanduser(self.PROGRAM_PREFIX)):
             log.warning('Path not valid in INI File [DISPLAY] PROGRAM_PREFIX section')
+
+        temp = self.INI.find("DISPLAY", "USER_COMMAND_FILE")
+        if not temp is None:
+            self.USER_COMMAND_FILE = os.path.expanduser(temp)
+        else:
+            self.USER_COMMAND_FILE = None
+
         self.SUB_PATH = (self.INI.find("RS274NGC", "SUBROUTINE_PATH")) or None
         self.STARTUP_CODES = (self.INI.find('RS274NGC', 'RS274NGC_STARTUP_CODE') ) or None
         if self.SUB_PATH is not None:
@@ -112,11 +119,17 @@ class _IStat(object):
             # check the ini file if UNITS are set to mm"
             # first check the global settings
             units = self.INI.find("TRAJ", "LINEAR_UNITS")
-            if units == None:
-                # else then the X axis units
-                units = self.INI.find("AXIS_0", "UNITS")
+            if units is None:
+                log.critical('Misssing LINEAR_UNITS in TRAJ, guessing units for machine from JOINT 0') 
+                # else then guess; The joint 0 is usually X axis
+                units = self.INI.find("JOINT_0", "UNITS")
+                if units is None:
+                    log.critical('Misssing UNITS in JOINT_0, assuming metric based machine') 
+                    units = 'metric'
         except:
-            units = "inch"
+            units = "metric"
+        finally:
+            units = units.lower()
         # set up the conversion arrays based on what units we discovered
         if units == "mm" or units == "metric" or units == "1.0":
             self.MACHINE_IS_METRIC = True
@@ -316,9 +329,10 @@ class _IStat(object):
             self.MIN_SPINDLE_OVERRIDE = self.MIN_SPINDLE_0_OVERRIDE
 
         self.MAX_FEED_OVERRIDE = float(self.get_error_safe_setting("DISPLAY", "MAX_FEED_OVERRIDE", 1.5)) * 100
+        if self.INI.find("TRAJ", "MAX_LINEAR_VELOCITY") is None:
+            log.critical('INI Parsing Error, No MAX_LINEAR_VELOCITY Entry in TRAJ')
         self.MAX_TRAJ_VELOCITY = float(self.get_error_safe_setting("TRAJ", "MAX_LINEAR_VELOCITY",
-                                                                   self.get_error_safe_setting("AXIS_X", "MAX_VELOCITY",
-                                                                                               5))) * 60
+                                            self.get_error_safe_setting("AXIS_X", "MAX_VELOCITY", 5))) * 60
 
         # user message dialog system
         self.USRMESS_BOLDTEXT = self.INI.findall("DISPLAY", "MESSAGE_BOLDTEXT")
@@ -368,6 +382,7 @@ class _IStat(object):
         self.MDI_COMMAND_LIST = (self.INI.findall("MDI_COMMAND_LIST", "MDI_COMMAND")) or None
         self.TOOL_FILE_PATH = self.get_error_safe_setting("EMCIO", "TOOL_TABLE")
         self.POSTGUI_HALFILE_PATH = (self.INI.findall("HAL", "POSTGUI_HALFILE")) or None
+        self.POSTGUI_HAL_COMMANDS = (self.INI.findall("HAL", "POSTGUI_HALCMD")) or None
 
         # Some systems need repeat disabled for keyboard jogging because repeat rate is uneven
         self.DISABLE_REPEAT_KEYS_LIST = self.INI.find("DISPLAY", "DISABLE_REPEAT_KEYS") or None

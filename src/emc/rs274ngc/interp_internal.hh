@@ -15,7 +15,7 @@
 
 #include <locale.h>
 #include <algorithm>
-#include "config.h"
+#include "linuxcnc.h"
 #include <limits.h>
 #include <stdio.h>
 #include <set>
@@ -58,10 +58,6 @@ inline int round_to_int(T x) {
  * example: a user G code command executes a tool change
  */
 #define MAX_NESTED_REMAPS 10
-
-// English - Metric conversion (long number keeps error buildup down)
-#define MM_PER_INCH 25.4
-//#define INCH_PER_MM 0.039370078740157477
 
 /* numerical constants */
 
@@ -513,7 +509,7 @@ struct block_struct
 
 
     // there might be several remapped items in a block, but at any point
-    // in time there's only one excuting
+    // in time there's only one executing
     // conceptually blocks[1..n] are also the 'remap frames'
     remap_pointer executing_remap; // refers to config descriptor
     std::set<int> remappings; // all remappings in this block (enum phases)
@@ -522,7 +518,7 @@ struct block_struct
     // the strategy to get the builtin behaviour of a code in a remap procedure is as follows:
     // if recursion is detected in find_remappings() (called by parse_line()), that *step* 
     // (roughly the modal group) is NOT added to the set of remapped steps in a block (block->remappings)
-    // in the convert_* procedures we test if the step is remapped with the macro below, and wether
+    // in the convert_* procedures we test if the step is remapped with the macro below, and whether
     // it is the current code which is remapped (IS_USER_MCODE, IS_USER_GCODE etc). If both
     // are true, we execute the remap procedure; if not, use the builtin code.
 #define STEP_REMAPPED_IN_BLOCK(bp, step) (bp->remappings.find(step) != bp->remappings.end())
@@ -530,7 +526,7 @@ struct block_struct
     // true if in a remap procedure the code being remapped was
     // referenced, which caused execution of the builtin semantics
     // reason for recording the fact: this permits an epilog to do the
-    // right thing depending on wether the builtin was used or not.
+    // right thing depending on whether the builtin was used or not.
     bool builtin_used; 
 };
 

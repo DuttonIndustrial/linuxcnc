@@ -15,7 +15,7 @@
 #ifndef EMCGLB_H
 #define EMCGLB_H
 
-#include "config.h"             /* LINELEN */
+#include "linuxcnc.h"           /* LINELEN */
 #include "math.h"		/* M_PI */
 #include "emcmotcfg.h"          /* EMCMOT_MAX_DIO */
 #include "debugflags.h"
@@ -52,7 +52,7 @@ extern "C" {
     extern unsigned char have_tool_change_position;
 
 
-/*just used to keep track of unneccessary debug printing. */
+/*just used to keep track of unnecessary debug printing. */
     extern int taskplanopen;
 
     extern int emcGetArgs(int argc, char *argv[]);

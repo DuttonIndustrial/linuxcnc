@@ -2,7 +2,8 @@
 '''
 pmx485.py
 
-Copyright (C) 2019 2020 Phillip A Carter
+Copyright (C) 2019, 2020, 2021 Phillip A Carter
+Copyright (C) 2020, 2021  Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -21,7 +22,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 import sys
 import hal
-import time
 import serial
 
 print('Starting pmx485 communications')
@@ -263,7 +263,8 @@ try:
                             started = False
                             comms.close()
 except:
-    print('Shutting down pmx485 communications, unknown error')
+    if enabled:
+        print('ERROR: Shutting down pmx485 communications, unknown error')
     if started:
         if not comms.isOpen():
             comms.open()

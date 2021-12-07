@@ -1,5 +1,4 @@
 import os
-import hal
 from PyQt5 import QtCore, QtWidgets, QtGui
 from qtvcp.widgets.gcode_editor import GcodeEditor as GCODE
 from qtvcp.widgets.mdi_line import MDILine as MDI_WIDGET
@@ -10,7 +9,7 @@ from qtvcp.widgets.file_manager import FileManager as FM
 from qtvcp.lib.writer import writer
 from qtvcp.lib.keybindings import Keylookup
 from qtvcp.lib.gcodes import GCodes
-from qtvcp.core import Status, Action, Info, Path
+from qtvcp.core import Status, Action, Info, Path, Qhal
 from qtvcp import logger
 from shutil import copyfile
 
@@ -22,6 +21,7 @@ ACTION = Action()
 PATH = Path()
 STYLEEDITOR = SSE()
 WRITER = writer.Main()
+QHAL = Qhal()
 
 # constants for tab pages
 TAB_MAIN = 0
@@ -59,7 +59,7 @@ class HandlerClass:
         self.home_all = False
         self.min_spindle_rpm = INFO.MIN_SPINDLE_SPEED
         self.max_spindle_rpm = INFO.MAX_SPINDLE_SPEED
-        self.max_spindle_power = INFO.get_error_safe_setting('DISPLAY', 'MAX_SPINDLE_POWER',"0")
+        self.max_spindle_power = INFO.get_error_safe_setting('DISPLAY', 'MAX_SPINDLE_POWER',"1500")
         self.max_linear_velocity = INFO.MAX_TRAJ_VELOCITY
         self.system_list = ["G54","G55","G56","G57","G58","G59","G59.1","G59.2","G59.3"]
         self.slow_jog_factor = 10
@@ -149,21 +149,21 @@ class HandlerClass:
     #############################
     def init_pins(self):
         # spindle control pins
-        pin = self.h.newpin("spindle_amps", hal.HAL_FLOAT, hal.HAL_IN)
+        pin = QHAL.newpin("spindle-amps", QHAL.HAL_FLOAT, QHAL.HAL_IN)
         pin.value_changed.connect(self.spindle_pwr_changed)
-        pin = self.h.newpin("spindle_volts", hal.HAL_FLOAT, hal.HAL_IN)
+        pin = QHAL.newpin("spindle-volts", QHAL.HAL_FLOAT, QHAL.HAL_IN)
         pin.value_changed.connect(self.spindle_pwr_changed)
-        pin = self.h.newpin("spindle_fault", hal.HAL_U32, hal.HAL_IN)
+        pin = QHAL.newpin("spindle-fault", QHAL.HAL_U32, QHAL.HAL_IN)
         pin.value_changed.connect(self.spindle_fault_changed)
-#        self.h.newpin("spindle_at_speed", hal.HAL_BIT, hal.HAL_IN)
-        pin = self.h.newpin("modbus-errors", hal.HAL_U32, hal.HAL_IN)
+#        QHAL.newpin("spindle_at_speed", QHAL.HAL_BIT, QHAL.HAL_IN)
+        pin = QHAL.newpin("spindle-modbus-errors", QHAL.HAL_U32, QHAL.HAL_IN)
         pin.value_changed.connect(self.mb_errors_changed)
-        self.h.newpin("spindle_inhibit", hal.HAL_BIT, hal.HAL_OUT)
+        QHAL.newpin("spindle-inhibit", QHAL.HAL_BIT, QHAL.HAL_OUT)
         # external offset control pins
-        self.h.newpin("eoffset_enable", hal.HAL_BIT, hal.HAL_OUT)
-        self.h.newpin("eoffset_clear", hal.HAL_BIT, hal.HAL_OUT)
-        self.h.newpin("eoffset_count", hal.HAL_S32, hal.HAL_OUT)
-        pin = self.h.newpin("eoffset_value", hal.HAL_FLOAT, hal.HAL_IN)
+        QHAL.newpin("eoffset-enable", QHAL.HAL_BIT, QHAL.HAL_OUT)
+        QHAL.newpin("eoffset-clear", QHAL.HAL_BIT, QHAL.HAL_OUT)
+        QHAL.newpin("eoffset-count", QHAL.HAL_S32, QHAL.HAL_OUT)
+        pin = QHAL.newpin("eoffset-value", QHAL.HAL_FLOAT, QHAL.HAL_IN)
         pin.value_changed.connect(self.eoffset_changed)
 
     def init_preferences(self):
@@ -227,8 +227,6 @@ class HandlerClass:
         self.w.PREFS_.putpref('Use camera', self.w.chk_use_camera.isChecked(), bool, 'CUSTOM_FORM_ENTRIES')
         self.w.PREFS_.putpref('Use alpha display mode', self.w.chk_alpha_mode.isChecked(), bool, 'CUSTOM_FORM_ENTRIES')
         self.w.PREFS_.putpref('Inhibit display mouse selection', self.w.chk_inhibit_selection.isChecked(), bool, 'CUSTOM_FORM_ENTRIES')
-        if self.probe is not None:
-            self.probe.closing_cleanup__()
 
     def init_widgets(self):
         self.w.main_tab_widget.setCurrentIndex(0)
@@ -407,24 +405,25 @@ class HandlerClass:
         # that the current reported by the VFD is total current for all 3 phases
         # and that the synchronous motor spindle has a power factor of 0.9
         try:
-            power = float(self.h['spindle_volts'] * self.h['spindle_amps'] * 0.9) # V x I x PF
+            power = float(self.h['spindle-volts'] * self.h['spindle-amps'] * 0.9) # V x I x PF
             pc_power = (power / float(self.max_spindle_power)) * 100
             if pc_power > 100:
                 pc_power = 100
             self.w.spindle_power.setValue(int(pc_power))
-        except:
+        except Exception as e:
+            #print(e)
             self.w.spindle_power.setValue(0)
 
     def spindle_fault_changed(self, data):
-        fault = hex(self.h['spindle_fault'])
+        fault = hex(self.h['spindle-fault'])
         self.w.lbl_spindle_fault.setText(fault)
 
     def mb_errors_changed(self, data):
-        errors = self.h['modbus-errors']
+        errors = self.h['spindle-modbus-errors']
         self.w.lbl_mb_errors.setText(str(errors))
 
     def eoffset_changed(self, data):
-        eoffset = "{:2.3f}".format(self.h['eoffset_value'])
+        eoffset = "{:2.3f}".format(self.h['eoffset-value'])
         self.w.lbl_eoffset_value.setText(eoffset)
 
     def dialog_return(self, w, message):
@@ -439,7 +438,7 @@ class HandlerClass:
         elif sensor_code and name == 'MESSAGE' and rtn is True:
             self.touchoff('sensor')
         elif wait_code and name == 'MESSAGE':
-            self.h['eoffset_clear'] = False
+            self.h['eoffset-clear'] = False
         elif unhome_code and name == 'MESSAGE' and rtn is True:
             ACTION.SET_MACHINE_UNHOMED(-1)
 
@@ -599,14 +598,14 @@ class HandlerClass:
         self.w.action_step.setEnabled(not state)
         if state:
         # set external offsets to lift spindle
-            self.h['eoffset_enable'] = self.w.chk_eoffsets.isChecked()
+            self.h['eoffset-enable'] = self.w.chk_eoffsets.isChecked()
             fval = float(self.w.lineEdit_eoffset_count.text())
-            self.h['eoffset_count'] = int(fval)
-            self.h['spindle_inhibit'] = True
+            self.h['eoffset-count'] = int(fval)
+            self.h['spindle-inhibit'] = True
         else:
-            self.h['eoffset_count'] = 0
-            self.h['eoffset_clear'] = True
-            self.h['spindle_inhibit'] = False
+            self.h['eoffset-count'] = 0
+            self.h['eoffset-clear'] = True
+            self.h['spindle-inhibit'] = False
             if STATUS.is_auto_running():
             # instantiate warning box
                 info = "Wait for spindle at speed signal before resuming"
@@ -897,8 +896,8 @@ class HandlerClass:
                 self.add_status("Loaded PDF file : {}".format(fname))
 
     def disable_spindle_pause(self):
-        self.h['eoffset_count'] = 0
-        self.h['spindle_inhibit'] = False
+        self.h['eoffset-count'] = 0
+        self.h['spindle-inhibit'] = False
         if self.w.btn_pause_spindle.isChecked():
             self.w.btn_pause_spindle.setChecked(False)
 
@@ -970,7 +969,7 @@ class HandlerClass:
         else:
             self.add_status("Machine OFF")
         self.w.btn_pause_spindle.setChecked(False)
-        self.h['eoffset_count'] = 0
+        self.h['eoffset-count'] = 0
         for widget in self.onoff_list:
             self.w[widget].setEnabled(state)
 
@@ -987,23 +986,6 @@ class HandlerClass:
         else:
             self.add_status('Keyboard shortcuts are disabled')
             return False
-
-    def update_rpm(self, speed):
-        rpm = int(speed)
-        if rpm == 0:
-            in_range = True
-            at_speed = False
-        else:
-            in_range = (self.min_spindle_rpm <= int(speed) <= self.max_spindle_rpm)
-            at_speed = self.h['spindle_at_speed']
-        widget = self.w.lbl_spindle_set
-        widget.setProperty('in_range', in_range)
-        widget.style().unpolish(widget)
-        widget.style().polish(widget)
-        if at_speed is True:
-            self.w.lbl_spindle_atspeed.setText('AT SPEED')
-        else:
-            self.w.lbl_spindle_atspeed.setText('')
 
     def update_runtimer(self):
         if self.timer_on is False or STATUS.is_auto_paused(): return

@@ -16,7 +16,9 @@
 #    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from rs274 import Translated, ArcsToSegmentsMixin, OpenGLTk
-from minigl import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import itertools
 import math
 import glnav
 import hershey
@@ -525,14 +527,17 @@ class GlCanonDraw:
             glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
 
             try:
-                buffer = list(glRenderMode(GL_RENDER))
+                buffer = glRenderMode(GL_RENDER)
             except OverflowError:
                 self.select_buffer_size *= 2
                 continue
             break
 
         if buffer:
-            min_depth, max_depth, names = min(buffer)
+            min_depth, max_depth, names = (buffer[0].near, buffer[0].far, buffer[0].names)
+            for x in buffer:
+                if min_depth < x.near:
+                    min_depth, max_depth, names = (x.near, x.far, x.names)
             self.set_highlight_line(names[0])
         else:
             self.set_highlight_line(None)
@@ -1108,10 +1113,7 @@ class GlCanonDraw:
         if icon is limiticon:
             if idx in self.show_icon_limit_list: return
             self.show_icon_limit_list.append(idx)
-        if sys.version_info[0] == 3:
-            glBitmap(13, 16, 0, 3, 17, 0, icon.tobytes())
-        else:
-            glBitmap(13, 16, 0, 3, 17, 0, icon.tostring())
+        glBitmap(13, 16, 0, 3, 17, 0, icon.tobytes())
 
     def redraw(self):
         s = self.stat

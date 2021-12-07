@@ -2,7 +2,8 @@
 '''
 pmx_test.py
 
-Copyright (C) 2020 Phillip A Carter
+Copyright (C) 2020, 2021 Phillip A Carter
+Copyright (C) 2020, 2021  Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -49,10 +50,7 @@ validRead    = '0402'
 
 class App(QWidget):
     def __init__(self):
-        if sys.version_info < (3, 0):
-            super(QWidget, self).__init__()
-        else:
-            super().__init__()
+        super().__init__()
         if not sMod:
             msg = '\npyserial module not available\n'\
                   '\nto install, open a terminal and enter:\n'\

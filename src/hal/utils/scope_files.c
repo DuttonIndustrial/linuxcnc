@@ -60,7 +60,7 @@
 
 /*
    THREAD <string>	name of thread to sample in
-   MAXCHAN <int>	1,2,4,8,16, maxumum channel count
+   MAXCHAN <int>	1,2,4,8,16, maximum channel count
    HMULT <int>		multiplier, sample every N runs of thread
    HZOOM <int>		1-9, horizontal zoom setting
    HPOS <float>		0.0-1.0, horizontal position setting
@@ -76,7 +76,7 @@
    TSOURCE <int>	channel number for trigger source
    TLEVEL <float>	0.0-1.0, trigger level setting
    TPOS <float>		0.0-1.0, trigger position setting
-   TPOLAR <enum>	triger polarity, RISE or FALL
+   TPOLAR <enum>	trigger polarity, RISE or FALL
    TMODE <int>		0 = normal trigger, 1 = auto trigger
    RMODE <int>		0 = stop, 1 = norm, 2 = single, 3 = roll
 
@@ -190,7 +190,7 @@ int read_config_file (char *filename)
     while ( fgets(cmd_buf, 99, fp) != NULL ) {
 	/* remove trailing newline if present */
 	cp = cmd_buf;
-	while (( *cp != '\n' ) && ( *cp != '\0' )) {
+	while (( *cp != '\n' ) && ( *cp != '\r' ) && ( *cp != '\0' )) {
 	    cp++;
 	}
 	*cp = '\0';
@@ -384,7 +384,7 @@ static int parse_command(char *in)
 	}
 	arg_string = cp1;
 	/* find and replace newline at end */
-	while (( *cp1 != '\n' ) && ( *cp1 != '\0' )) {
+	while (( *cp1 != '\n' ) && ( *cp1 != '\r' ) && ( *cp1 != '\0')) {
 	    cp1++;
 	}
 	*cp1 = '\0';
@@ -489,7 +489,7 @@ static char *chan_cmd(void * arg)
     rv = set_active_channel(chan_num);
     switch (rv) {
     case 0:
-	// successfull return
+	// successful return
 	return NULL;
     case -1:
 	return "illegal channel number";

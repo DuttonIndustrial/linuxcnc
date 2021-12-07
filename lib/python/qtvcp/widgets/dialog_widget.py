@@ -20,7 +20,8 @@ import hal
 
 from PyQt5.QtWidgets import (QMessageBox, QFileDialog, QDesktopWidget,
         QDialog, QDialogButtonBox, QVBoxLayout, QPushButton, QHBoxLayout,
-        QHBoxLayout, QLineEdit, QPushButton, QDialogButtonBox, QTabWidget)
+        QHBoxLayout, QLineEdit, QPushButton, QDialogButtonBox, QTabWidget,
+        QTextEdit)
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt, pyqtSlot, pyqtProperty, QEvent, QUrl
 from PyQt5 import uic
@@ -268,12 +269,17 @@ class LcncDialog(QMessageBox, GeometryMixin):
         if play_alert:
             STATUS.emit('play-sound', play_alert)
         if not nblock:
+            self.show()
+            self.forceDetailsOpen()
             retval = self.exec_()
             STATUS.emit('focus-overlay-changed', False, None, None)
             LOG.debug('Value of pressed button: {}'.format(retval))
             return self.qualifiedReturn(retval)
         else:
             self.show()
+
+    def forceDetailsOpen(self):
+        pass
 
     def qualifiedReturn(self, retval):
         if retval in(QMessageBox.No, QMessageBox.Cancel):
@@ -350,6 +356,20 @@ class CloseDialog(LcncDialog, GeometryMixin):
         self._request_name = 'CLOSEPROMPT'
         self._title = 'QtVCP'
 
+    def forceDetailsOpen(self):
+        try:
+            # force the details box open on first time display
+            for i in self.buttons():
+                if self.buttonRole(i) == QMessageBox.ActionRole:
+                    for j in self.children():
+                        for k in j.children():
+                            if isinstance( k, QTextEdit):
+                                #i.hide()
+                                if not k.isVisible():
+                                    i.click()
+        except:
+            pass
+
 ################################################################################
 # Tool Change Dialog
 ################################################################################
@@ -363,7 +383,7 @@ class ToolDialog(LcncDialog, GeometryMixin):
         self._useDesktopNotify = False
         self._frameless = False
         self._curLine = 0
-        self._actionbutton = self.addButton('Pause For Jogging', QMessageBox.ActionRole)
+        self._actionbutton = self.addButton('Pause For Jogging', QMessageBox.ApplyRole)
         self._actionbutton.setEnabled(False)
         self._flag = True
 
@@ -491,7 +511,8 @@ class ToolDialog(LcncDialog, GeometryMixin):
         # force the details box open on first time display
         if self._flag and details != ' Tool Info: ':
             for i in self.buttons():
-                if self.buttonRole(i) == 3:
+                if self.buttonRole(i) == QMessageBox.ActionRole:
+                    if i is self._actionbutton: continue
                     i.click()
                     self._flag = False
         if play_alert:
@@ -553,6 +574,10 @@ class FileDialog(QFileDialog, GeometryMixin):
         options |= QFileDialog.DontUseNativeDialog
         self.setOptions(options)
         self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowFlags(self.windowFlags() | Qt.Tool |
+                            Qt.Dialog |
+                            Qt.WindowStaysOnTopHint | Qt.WindowSystemMenuHint)
+
         self.INI_exts = INFO.get_qt_filter_extensions()
         self.setNameFilter(self.INI_exts)
         self.default_path = (os.path.join(os.path.expanduser('~'), 'linuxcnc/nc_files/examples'))
@@ -792,8 +817,8 @@ class OriginOffsetDialog(QDialog, GeometryMixin):
         STATUS.emit('focus-overlay-changed', False, None, None)
         self.record_geometry()
 
-    def closing_cleanup__(self):
-        self._o.closing_cleanup__()
+    def _hal_cleanup(self):
+        self._o._hal_cleanup()
 
     # usual boiler code
     # (used so we can use code such as self[SomeDataName]
@@ -1198,8 +1223,8 @@ class VersaProbeDialog(QDialog, GeometryMixin):
         self.set_default_geometry()
         STATUS.connect('dialog-request', self._external_request)
 
-    def closing_cleanup__(self):
-        self._o.closing_cleanup__()
+    def _hal_cleanup(self):
+        self._o._hal_cleanup()
 
     def _external_request(self, w, message):
         if message['NAME'] == self._request_name:

@@ -78,6 +78,13 @@
       <property name="catch_close_option" stdset="0">
        <bool>false</bool>
       </property>
+      <property name="close_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
       <property name="play_sounds_option" stdset="0">
        <bool>false</bool>
       </property>
@@ -96,13 +103,6 @@
       </property>
       <property name="closeDialog_option" stdset="0">
        <bool>true</bool>
-      </property>
-      <property name="close_overlay_color" stdset="0">
-       <color alpha="128">
-        <red>128</red>
-        <green>128</green>
-        <blue>128</blue>
-       </color>
       </property>
       <property name="entryDialog_option" stdset="0">
        <bool>true</bool>
@@ -375,6 +375,40 @@
                          <number>0</number>
                         </property>
                         <item>
+                         <widget class="PushButton" name="file_clear">
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
+                          </property>
+                          <property name="minimumSize">
+                           <size>
+                            <width>60</width>
+                            <height>16</height>
+                           </size>
+                          </property>
+                          <property name="maximumSize">
+                           <size>
+                            <width>60</width>
+                            <height>16</height>
+                           </size>
+                          </property>
+                          <property name="text">
+                           <string>CLEAR</string>
+                          </property>
+                          <property name="python_command_option" stdset="0">
+                           <bool>false</bool>
+                          </property>
+                          <property name="true_python_cmd_string" stdset="0">
+                           <string/>
+                          </property>
+                          <property name="false_python_cmd_string" stdset="0">
+                           <string/>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
                          <widget class="QPushButton" name="file_open">
                           <property name="sizePolicy">
                            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -393,9 +427,6 @@
                             <width>16777215</width>
                             <height>16</height>
                            </size>
-                          </property>
-                          <property name="statusTip">
-                           <string>Open the file selector</string>
                           </property>
                           <property name="text">
                            <string>OPEN</string>
@@ -424,9 +455,6 @@
                             <width>60</width>
                             <height>16</height>
                            </size>
-                          </property>
-                          <property name="statusTip">
-                           <string>Reload the current G-Code file</string>
                           </property>
                           <property name="text">
                            <string>RELOAD</string>
@@ -479,49 +507,6 @@
                           </property>
                           <property name="auto_show_mdi_status" stdset="0">
                            <bool>false</bool>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QProgressBar" name="gcode_progress">
-                          <property name="sizePolicy">
-                           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                            <horstretch>0</horstretch>
-                            <verstretch>0</verstretch>
-                           </sizepolicy>
-                          </property>
-                          <property name="minimumSize">
-                           <size>
-                            <width>0</width>
-                            <height>20</height>
-                           </size>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>16777215</width>
-                            <height>20</height>
-                           </size>
-                          </property>
-                          <property name="whatsThis">
-                           <string>wot is this???</string>
-                          </property>
-                          <property name="autoFillBackground">
-                           <bool>false</bool>
-                          </property>
-                          <property name="maximum">
-                           <number>99</number>
-                          </property>
-                          <property name="value">
-                           <number>0</number>
-                          </property>
-                          <property name="alignment">
-                           <set>Qt::AlignCenter</set>
-                          </property>
-                          <property name="invertedAppearance">
-                           <bool>false</bool>
-                          </property>
-                          <property name="format">
-                           <string>PROGRESS %p%</string>
                           </property>
                          </widget>
                         </item>
@@ -687,9 +672,6 @@
                      <height>16</height>
                     </size>
                    </property>
-                   <property name="statusTip">
-                    <string/>
-                   </property>
                    <property name="text">
                     <string>DRO</string>
                    </property>
@@ -741,9 +723,6 @@
                         <width>48</width>
                         <height>40</height>
                        </size>
-                      </property>
-                      <property name="statusTip">
-                       <string>Home the X axis</string>
                       </property>
                       <property name="text">
                        <string>HOME</string>
@@ -854,9 +833,6 @@ HOME</string>
                       <property name="toolTip">
                        <string/>
                       </property>
-                      <property name="statusTip">
-                       <string>Home all axes</string>
-                      </property>
                       <property name="text">
                        <string>HOME ALL</string>
                       </property>
@@ -901,9 +877,6 @@ HOME ALL</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Current Z axis position</string>
-                      </property>
                       <property name="styleSheet">
                        <string notr="true"/>
                       </property>
@@ -944,9 +917,6 @@ HOME ALL</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Current Y axis position</string>
-                      </property>
                       <property name="styleSheet">
                        <string notr="true"/>
                       </property>
@@ -986,9 +956,6 @@ HOME ALL</string>
                         <width>40</width>
                         <height>40</height>
                        </size>
-                      </property>
-                      <property name="statusTip">
-                       <string>Touch off the A axis</string>
                       </property>
                       <property name="text">
                        <string>0</string>
@@ -1074,9 +1041,6 @@ HOME ALL</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Home the Z axis</string>
-                      </property>
                       <property name="text">
                        <string>HOME</string>
                       </property>
@@ -1153,9 +1117,6 @@ HOME</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Touch off the X axis</string>
-                      </property>
                       <property name="text">
                        <string>0</string>
                       </property>
@@ -1195,9 +1156,6 @@ HOME</string>
                         <width>16777215</width>
                         <height>40</height>
                        </size>
-                      </property>
-                      <property name="statusTip">
-                       <string>Current X axis position</string>
                       </property>
                       <property name="styleSheet">
                        <string notr="true"/>
@@ -1262,9 +1220,6 @@ HOME</string>
                            <width>40</width>
                            <height>40</height>
                           </size>
-                         </property>
-                         <property name="statusTip">
-                          <string>Select work coordinate system</string>
                          </property>
                          <property name="text">
                           <string/>
@@ -1360,9 +1315,6 @@ HOME</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Current A axis position</string>
-                      </property>
                       <property name="styleSheet">
                        <string notr="true"/>
                       </property>
@@ -1452,9 +1404,6 @@ HOME</string>
                         <width>48</width>
                         <height>40</height>
                        </size>
-                      </property>
-                      <property name="statusTip">
-                       <string>Home the A axis</string>
                       </property>
                       <property name="text">
                        <string>HOME</string>
@@ -1654,9 +1603,6 @@ HOME</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Home the Y axis</string>
-                      </property>
                       <property name="text">
                        <string>HOME</string>
                       </property>
@@ -1788,9 +1734,6 @@ HOME</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Touch off the Y axis</string>
-                      </property>
                       <property name="text">
                        <string>0</string>
                       </property>
@@ -1833,9 +1776,6 @@ HOME</string>
                         <width>40</width>
                         <height>40</height>
                        </size>
-                      </property>
-                      <property name="statusTip">
-                       <string>Touch off the Z axis</string>
                       </property>
                       <property name="text">
                        <string>0</string>
@@ -2289,9 +2229,6 @@ HOME</string>
                         <height>0</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Estop status</string>
-                      </property>
                       <property name="text">
                        <string>ESTOP</string>
                       </property>
@@ -2337,12 +2274,10 @@ HOME</string>
                        <double>0.200000000000000</double>
                       </property>
                       <property name="true_state_string" stdset="0">
-                       <string>ESTOP
-RESET</string>
+                       <string/>
                       </property>
                       <property name="false_state_string" stdset="0">
-                       <string>ESTOP
-SET</string>
+                       <string/>
                       </property>
                       <property name="is_estopped_status" stdset="0">
                        <bool>true</bool>
@@ -2419,9 +2354,6 @@ SET</string>
                       </property>
                       <property name="toolTip">
                        <string/>
-                      </property>
-                      <property name="statusTip">
-                       <string>Switch the GUI on or off</string>
                       </property>
                       <property name="text">
                        <string>POWER</string>
@@ -2542,9 +2474,6 @@ ON</string>
                         <height>40</height>
                        </size>
                       </property>
-                      <property name="statusTip">
-                       <string>Run the current G-Code program</string>
-                      </property>
                       <property name="text">
                        <string>CYCLE START</string>
                       </property>
@@ -2569,9 +2498,6 @@ ON</string>
                         <width>16777215</width>
                         <height>40</height>
                        </size>
-                      </property>
-                      <property name="statusTip">
-                       <string>Pause or resume the current G-Code program</string>
                       </property>
                       <property name="text">
                        <string>CYCLE PAUSE</string>
@@ -2851,8 +2777,7 @@ ON</string>
                           </size>
                          </property>
                          <property name="text">
-                          <string>FEED
-100%</string>
+                          <string>FEED</string>
                          </property>
                         </widget>
                        </item>
@@ -2875,9 +2800,6 @@ ON</string>
                            <width>16777215</width>
                            <height>16777215</height>
                           </size>
-                         </property>
-                         <property name="statusTip">
-                          <string>Set the feed override percentage</string>
                          </property>
                          <property name="maximum">
                           <number>100</number>
@@ -2932,8 +2854,7 @@ ON</string>
                           </size>
                          </property>
                          <property name="text">
-                          <string>RAPID
-100%</string>
+                          <string>RAPID</string>
                          </property>
                         </widget>
                        </item>
@@ -2950,9 +2871,6 @@ ON</string>
                            <width>0</width>
                            <height>0</height>
                           </size>
-                         </property>
-                         <property name="statusTip">
-                          <string>Set the rapid override percentage</string>
                          </property>
                          <property name="maximum">
                           <number>100</number>
@@ -3001,8 +2919,7 @@ ON</string>
                           </size>
                          </property>
                          <property name="text">
-                          <string>JOG
-100</string>
+                          <string>JOG</string>
                          </property>
                         </widget>
                        </item>
@@ -3019,9 +2936,6 @@ ON</string>
                            <width>0</width>
                            <height>0</height>
                           </size>
-                         </property>
-                         <property name="statusTip">
-                          <string>Set the jog feed rate</string>
                          </property>
                          <property name="maximum">
                           <number>100</number>
@@ -3773,7 +3687,7 @@ ON</string>
                        <property name="frameShadow">
                         <enum>QFrame::Plain</enum>
                        </property>
-                       <layout class="QHBoxLayout" name="horizontalLayout_27" stretch="0,0,0">
+                       <layout class="QHBoxLayout" name="horizontalLayout_27" stretch="0,0,0,0">
                         <property name="spacing">
                          <number>0</number>
                         </property>
@@ -3789,6 +3703,25 @@ ON</string>
                         <property name="bottomMargin">
                          <number>0</number>
                         </property>
+                        <item>
+                         <widget class="QLabel" name="material_label">
+                          <property name="minimumSize">
+                           <size>
+                            <width>0</width>
+                            <height>16</height>
+                           </size>
+                          </property>
+                          <property name="maximumSize">
+                           <size>
+                            <width>16777215</width>
+                            <height>16</height>
+                           </size>
+                          </property>
+                          <property name="text">
+                           <string>MATERIAL =</string>
+                          </property>
+                         </widget>
+                        </item>
                         <item>
                          <widget class="QComboBox" name="material_selector">
                           <property name="sizePolicy">
@@ -4342,7 +4275,7 @@ ON</string>
                          <number>0</number>
                         </property>
                         <item>
-                         <widget class="PushButton" name="file_select">
+                         <widget class="IndicatedPushButton" name="file_select">
                           <property name="sizePolicy">
                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                             <horstretch>0</horstretch>
@@ -4360,9 +4293,6 @@ ON</string>
                             <width>16777215</width>
                             <height>16777215</height>
                            </size>
-                          </property>
-                          <property name="statusTip">
-                           <string>Open the selected G-Code file</string>
                           </property>
                           <property name="text">
                            <string>SELECT</string>
@@ -4379,7 +4309,7 @@ ON</string>
                          </widget>
                         </item>
                         <item>
-                         <widget class="PushButton" name="file_next">
+                         <widget class="IndicatedPushButton" name="file_next">
                           <property name="sizePolicy">
                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                             <horstretch>0</horstretch>
@@ -4397,9 +4327,6 @@ ON</string>
                             <width>16777215</width>
                             <height>16777215</height>
                            </size>
-                          </property>
-                          <property name="statusTip">
-                           <string>Move down</string>
                           </property>
                           <property name="text">
                            <string>NEXT</string>
@@ -4419,7 +4346,7 @@ ON</string>
                          </widget>
                         </item>
                         <item>
-                         <widget class="PushButton" name="file_prev">
+                         <widget class="IndicatedPushButton" name="file_prev">
                           <property name="sizePolicy">
                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                             <horstretch>0</horstretch>
@@ -4437,9 +4364,6 @@ ON</string>
                             <width>16777215</width>
                             <height>16777215</height>
                            </size>
-                          </property>
-                          <property name="statusTip">
-                           <string>Move up</string>
                           </property>
                           <property name="text">
                            <string>PREV</string>
@@ -4471,9 +4395,6 @@ ON</string>
                             <width>40</width>
                             <height>40</height>
                            </size>
-                          </property>
-                          <property name="statusTip">
-                           <string>Close the file selector</string>
                           </property>
                           <property name="text">
                            <string>CANCEL</string>
@@ -4902,6 +4823,28 @@ EDGE</string>
                   </item>
                  </layout>
                 </widget>
+                <widget class="QWidget" name="offsets_page">
+                 <layout class="QHBoxLayout" name="horizontalLayout_30">
+                  <property name="spacing">
+                   <number>0</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="OriginOffsetView" name="originoffsetview"/>
+                  </item>
+                 </layout>
+                </widget>
                </widget>
               </item>
               <item>
@@ -5076,9 +5019,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Set the jog increment</string>
-                             </property>
                             </widget>
                            </item>
                            <item>
@@ -5104,9 +5044,6 @@ EDGE</string>
                              <property name="toolTip">
                               <string/>
                              </property>
-                             <property name="statusTip">
-                              <string>Toggle jog feed rate by a factor of 10</string>
-                             </property>
                              <property name="text">
                               <string>FAST</string>
                              </property>
@@ -5114,13 +5051,13 @@ EDGE</string>
                               <bool>true</bool>
                              </property>
                              <property name="checked_state_text_option" stdset="0">
-                              <bool>true</bool>
+                              <bool>false</bool>
                              </property>
                              <property name="true_state_string" stdset="0">
-                              <string>SLOW</string>
+                              <string/>
                              </property>
                              <property name="false_state_string" stdset="0">
-                              <string>FAST</string>
+                              <string/>
                              </property>
                              <property name="slider" stdset="0">
                               <string>jog_slider</string>
@@ -5180,9 +5117,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Jog the X axis right</string>
-                             </property>
                              <property name="icon">
                               <iconset>
                                <normalon>:/images/x_plus_e.png</normalon>
@@ -5216,9 +5150,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Jog the Z axis up</string>
                              </property>
                              <property name="icon">
                               <iconset>
@@ -5254,9 +5185,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Jog the Y axis forward</string>
-                             </property>
                              <property name="icon">
                               <iconset>
                                <normalon>:/images/y_minus_e.png</normalon>
@@ -5290,9 +5218,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Jog the Y axis back</string>
                              </property>
                              <property name="icon">
                               <iconset>
@@ -5328,9 +5253,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Jog the A axis counter clockwise</string>
-                             </property>
                              <property name="icon">
                               <iconset>
                                <normalon>:/images/a_minus_e.png</normalon>
@@ -5364,9 +5286,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Jog the A axis clockwise</string>
                              </property>
                              <property name="icon">
                               <iconset>
@@ -5402,9 +5321,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Jog the Z axis down</string>
-                             </property>
                              <property name="icon">
                               <iconset>
                                <normalon>../../../.designer/backup/images/z_minus_e.png</normalon>
@@ -5438,9 +5354,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Jog the X axis left</string>
                              </property>
                              <property name="icon">
                               <iconset>
@@ -5663,9 +5576,6 @@ EDGE</string>
                                   <height>40</height>
                                  </size>
                                 </property>
-                                <property name="statusTip">
-                                 <string>Reverse move along current motion segment</string>
-                                </property>
                                 <property name="text">
                                  <string>REV</string>
                                 </property>
@@ -5720,9 +5630,6 @@ EDGE</string>
                                   <height>40</height>
                                  </size>
                                 </property>
-                                <property name="statusTip">
-                                 <string>Cancel cut recovery</string>
-                                </property>
                                 <property name="text">
                                  <string>CANCEL</string>
                                 </property>
@@ -5763,9 +5670,6 @@ EDGE</string>
                                <width>16777215</width>
                                <height>16777215</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Paused motion feed rate override percentage</string>
                              </property>
                              <property name="maximum">
                               <number>100</number>
@@ -5867,9 +5771,6 @@ EDGE</string>
                                   <height>40</height>
                                  </size>
                                 </property>
-                                <property name="statusTip">
-                                 <string>Forward move along current motion segment</string>
-                                </property>
                                 <property name="layoutDirection">
                                  <enum>Qt::LeftToRight</enum>
                                 </property>
@@ -5959,9 +5860,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Move torch in the X+ direction</string>
-                             </property>
                              <property name="text">
                               <string/>
                              </property>
@@ -5992,9 +5890,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Move torch in the Y- direction</string>
                              </property>
                              <property name="text">
                               <string/>
@@ -6027,9 +5922,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Move torch in the X+ Y- direction</string>
-                             </property>
                              <property name="text">
                               <string/>
                              </property>
@@ -6043,9 +5935,6 @@ EDGE</string>
                            </item>
                            <item row="1" column="1">
                             <widget class="QLabel" name="cut_rec_move_label">
-                             <property name="statusTip">
-                              <string>Distance the torch will move</string>
-                             </property>
                              <property name="text">
                               <string>MOVE</string>
                              </property>
@@ -6073,9 +5962,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Move torch in the X- direction</string>
                              </property>
                              <property name="text">
                               <string/>
@@ -6108,9 +5994,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Move torch in the X- Y- direction</string>
-                             </property>
                              <property name="text">
                               <string/>
                              </property>
@@ -6141,9 +6024,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Move torch in the X+ Y+ direction</string>
                              </property>
                              <property name="text">
                               <string/>
@@ -6176,9 +6056,6 @@ EDGE</string>
                                <height>40</height>
                               </size>
                              </property>
-                             <property name="statusTip">
-                              <string>Move torch in the Y+ direction</string>
-                             </property>
                              <property name="text">
                               <string/>
                              </property>
@@ -6209,9 +6086,6 @@ EDGE</string>
                                <width>40</width>
                                <height>40</height>
                               </size>
-                             </property>
-                             <property name="statusTip">
-                              <string>Move torch in the X- Y+ direction</string>
                              </property>
                              <property name="layoutDirection">
                               <enum>Qt::LeftToRight</enum>
@@ -6387,9 +6261,6 @@ EDGE</string>
                               <height>17</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>DOWN</string>
                             </property>
@@ -6411,9 +6282,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>THC is enabled</string>
                             </property>
                             <property name="color">
                              <color>
@@ -6445,9 +6313,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>THC is moving the Z axis up</string>
-                            </property>
                             <property name="color">
                              <color>
                               <red>252</red>
@@ -6470,9 +6335,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>THC is moving the Z axis down</string>
                             </property>
                             <property name="color">
                              <color>
@@ -6497,9 +6359,6 @@ EDGE</string>
                               <height>17</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>ACTIVE</string>
                             </property>
@@ -6521,9 +6380,6 @@ EDGE</string>
                               <width>64</width>
                               <height>17</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string/>
                             </property>
                             <property name="text">
                              <string>ENABLED</string>
@@ -6547,9 +6403,6 @@ EDGE</string>
                               <height>17</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>UP</string>
                             </property>
@@ -6571,9 +6424,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>THC is currently active</string>
                             </property>
                             <property name="color">
                              <color>
@@ -6724,9 +6574,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Float switch status</string>
-                            </property>
                             <property name="color">
                              <color>
                               <red>252</red>
@@ -6750,9 +6597,6 @@ EDGE</string>
                               <height>17</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>FLOAT</string>
                             </property>
@@ -6774,9 +6618,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>Ohmic probe status</string>
                             </property>
                             <property name="color">
                              <color>
@@ -6801,9 +6642,6 @@ EDGE</string>
                               <height>17</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>OHMIC</string>
                             </property>
@@ -6825,9 +6663,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>Breakaway switch status</string>
                             </property>
                             <property name="color">
                              <color>
@@ -6851,9 +6686,6 @@ EDGE</string>
                               <width>64</width>
                               <height>17</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string/>
                             </property>
                             <property name="text">
                              <string>BREAK</string>
@@ -7034,9 +6866,6 @@ EDGE</string>
                               <pointsize>40</pointsize>
                              </font>
                             </property>
-                            <property name="statusTip">
-                             <string>Current arc voltage</string>
-                            </property>
                             <property name="frameShape">
                              <enum>QFrame::NoFrame</enum>
                             </property>
@@ -7141,9 +6970,6 @@ EDGE</string>
                                  <width>16777215</width>
                                  <height>16777215</height>
                                 </size>
-                               </property>
-                               <property name="statusTip">
-                                <string>Arc OK signal</string>
                                </property>
                                <property name="color">
                                 <color>
@@ -7276,9 +7102,6 @@ EDGE</string>
                                     <height>24</height>
                                    </size>
                                   </property>
-                                  <property name="statusTip">
-                                   <string>Override THC height down</string>
-                                  </property>
                                   <property name="text">
                                    <string>-</string>
                                   </property>
@@ -7297,9 +7120,6 @@ EDGE</string>
                                     <width>30</width>
                                     <height>30</height>
                                    </size>
-                                  </property>
-                                  <property name="statusTip">
-                                   <string>THC override voltage</string>
                                   </property>
                                   <property name="text">
                                    <string>-0.0</string>
@@ -7322,9 +7142,6 @@ EDGE</string>
                                     <width>24</width>
                                     <height>24</height>
                                    </size>
-                                  </property>
-                                  <property name="statusTip">
-                                   <string>Override THC height down</string>
                                   </property>
                                   <property name="text">
                                    <string>+</string>
@@ -7445,9 +7262,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Enable mesh mode cutting</string>
-                            </property>
                             <property name="layoutDirection">
                              <enum>Qt::LeftToRight</enum>
                             </property>
@@ -7527,9 +7341,6 @@ EDGE</string>
                               <height>0</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Use automatic voltage for THC</string>
-                            </property>
                            </widget>
                           </item>
                          </layout>
@@ -7584,9 +7395,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>Ignore Arc OK signal</string>
                             </property>
                             <property name="layoutDirection">
                              <enum>Qt::LeftToRight</enum>
@@ -7673,9 +7481,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Enable ohmic probing</string>
-                            </property>
                             <property name="layoutDirection">
                              <enum>Qt::LeftToRight</enum>
                             </property>
@@ -7731,9 +7536,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Torch on status</string>
-                            </property>
                             <property name="color">
                              <color>
                               <red>252</red>
@@ -7756,9 +7558,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string/>
                             </property>
                             <property name="text">
                              <string>TORCH ON</string>
@@ -7795,9 +7594,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>ENABLE</string>
                             </property>
@@ -7825,9 +7621,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>Enable the torch</string>
                             </property>
                             <property name="layoutDirection">
                              <enum>Qt::LeftToRight</enum>
@@ -7884,9 +7677,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Velocity anti dive is active</string>
-                            </property>
                             <property name="color">
                              <color>
                               <red>252</red>
@@ -7909,9 +7699,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string/>
                             </property>
                             <property name="text">
                              <string>VELOCITY ANTI DIVE</string>
@@ -7948,9 +7735,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string/>
-                            </property>
                             <property name="text">
                              <string>ENABLE</string>
                             </property>
@@ -7978,9 +7762,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>Enable velocity anti dive</string>
                             </property>
                             <property name="layoutDirection">
                              <enum>Qt::LeftToRight</enum>
@@ -8037,9 +7818,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Void anti dive is active</string>
-                            </property>
                             <property name="color">
                              <color>
                               <red>252</red>
@@ -8062,9 +7840,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string/>
                             </property>
                             <property name="text">
                              <string>VOID ANTI DIVE</string>
@@ -8129,9 +7904,6 @@ EDGE</string>
                               <height>16777215</height>
                              </size>
                             </property>
-                            <property name="statusTip">
-                             <string>Enable void anti dive</string>
-                            </property>
                             <property name="layoutDirection">
                              <enum>Qt::LeftToRight</enum>
                             </property>
@@ -8175,9 +7947,6 @@ EDGE</string>
                               <verstretch>0</verstretch>
                              </sizepolicy>
                             </property>
-                            <property name="statusTip">
-                             <string>status of pmx485 communications</string>
-                            </property>
                             <property name="text">
                              <string/>
                             </property>
@@ -8218,9 +7987,6 @@ EDGE</string>
                               <width>16777215</width>
                               <height>16777215</height>
                              </size>
-                            </property>
-                            <property name="statusTip">
-                             <string>Enable Powermax communications</string>
                             </property>
                             <property name="text">
                              <string/>
@@ -8805,66 +8571,20 @@ EDGE</string>
                      </widget>
                     </item>
                     <item>
-                     <widget class="PushButton" name="conv_rotate">
-                      <property name="sizePolicy">
-                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                        <horstretch>0</horstretch>
-                        <verstretch>0</verstretch>
-                       </sizepolicy>
+                     <spacer name="horizontalSpacer_17">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
                       </property>
-                      <property name="minimumSize">
+                      <property name="sizeHint" stdset="0">
                        <size>
-                        <width>60</width>
-                        <height>60</height>
+                        <width>40</width>
+                        <height>20</height>
                        </size>
                       </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>16777215</width>
-                        <height>16777215</height>
-                       </size>
-                      </property>
-                      <property name="iconSize">
-                       <size>
-                        <width>48</width>
-                        <height>48</height>
-                       </size>
-                      </property>
-                      <property name="checkable">
-                       <bool>true</bool>
-                      </property>
-                      <property name="autoExclusive">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
+                     </spacer>
                     </item>
                     <item>
-                     <widget class="PushButton" name="conv_scale">
-                      <property name="sizePolicy">
-                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                        <horstretch>0</horstretch>
-                        <verstretch>0</verstretch>
-                       </sizepolicy>
-                      </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>60</width>
-                        <height>60</height>
-                       </size>
-                      </property>
-                      <property name="iconSize">
-                       <size>
-                        <width>48</width>
-                        <height>48</height>
-                       </size>
-                      </property>
-                      <property name="autoExclusive">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="PushButton" name="conv_array">
+                     <widget class="PushButton" name="conv_block">
                       <property name="sizePolicy">
                        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                         <horstretch>0</horstretch>
@@ -10060,13 +9780,13 @@ EDGE</string>
                              <bool>true</bool>
                             </property>
                             <property name="decimals">
-                             <number>1</number>
+                             <number>2</number>
                             </property>
                             <property name="maximum">
                              <double>9.000000000000000</double>
                             </property>
                             <property name="singleStep">
-                             <double>0.100000000000000</double>
+                             <double>0.010000000000000</double>
                             </property>
                             <property name="value">
                              <double>0.000000000000000</double>
@@ -12699,9 +12419,6 @@ EDGE</string>
                      <height>16777215</height>
                     </size>
                    </property>
-                   <property name="statusTip">
-                    <string>cutting current in amps, indicator only, not used by PlasmaC</string>
-                   </property>
                    <property name="layoutDirection">
                     <enum>Qt::LeftToRight</enum>
                    </property>
@@ -12721,13 +12438,13 @@ EDGE</string>
                     <number>0</number>
                    </property>
                    <property name="minimum">
-                    <double>15.000000000000000</double>
+                    <double>10.000000000000000</double>
                    </property>
                    <property name="maximum">
                     <double>999.000000000000000</double>
                    </property>
                    <property name="value">
-                    <double>15.000000000000000</double>
+                    <double>999.000000000000000</double>
                    </property>
                   </widget>
                  </item>
@@ -13981,6 +13698,29 @@ EDGE</string>
                    </property>
                   </widget>
                  </item>
+                 <item row="2" column="3">
+                  <widget class="QLabel" name="label_5">
+                   <property name="text">
+                    <string>Tool Tips</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="2" column="4">
+                  <widget class="QCheckBox" name="chk_tool_tips">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="text">
+                    <string/>
+                   </property>
+                  </widget>
+                 </item>
                 </layout>
                </widget>
               </item>
@@ -14564,6 +14304,32 @@ EDGE</string>
                     </size>
                    </property>
                   </spacer>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="set_offsets">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>90</width>
+                     <height>50</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>90</width>
+                     <height>50</height>
+                    </size>
+                   </property>
+                   <property name="text">
+                    <string>SET
+OFFSETS</string>
+                   </property>
+                  </widget>
                  </item>
                  <item>
                   <widget class="QPushButton" name="backup">
@@ -15357,71 +15123,13 @@ CONFIG</string>
  </widget>
  <customwidgets>
   <customwidget>
-   <class>GCodeGraphics</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.gcode_graphics</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>StatusSlider</class>
-   <extends>QSlider</extends>
-   <header>qtvcp.widgets.status_slider</header>
-  </customwidget>
-  <customwidget>
-   <class>AxisToolButton</class>
-   <extends>QToolButton</extends>
-   <header>qtvcp.widgets.axis_tool_button</header>
-  </customwidget>
-  <customwidget>
-   <class>LED</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.led_widget</header>
-  </customwidget>
-  <customwidget>
-   <class>JogIncrements</class>
-   <extends>QComboBox</extends>
-   <header>qtvcp.widgets.jog_increments</header>
-  </customwidget>
-  <customwidget>
-   <class>ScreenOptions</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.screen_options</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>PushButton</class>
+   <class>IndicatedPushButton</class>
    <extends>QPushButton</extends>
    <header>qtvcp.widgets.simple_widgets</header>
   </customwidget>
   <customwidget>
-   <class>MachineLog</class>
-   <extends>QTextEdit</extends>
-   <header>qtvcp.widgets.machine_log</header>
-  </customwidget>
-  <customwidget>
-   <class>CamView</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.camview_widget</header>
-  </customwidget>
-  <customwidget>
-   <class>HALLabel</class>
-   <extends>QLabel</extends>
-   <header>qtvcp.widgets.hal_label</header>
-  </customwidget>
-  <customwidget>
-   <class>StatusLabel</class>
-   <extends>QLabel</extends>
-   <header>qtvcp.widgets.status_label</header>
-  </customwidget>
-  <customwidget>
-   <class>DROLabel</class>
-   <extends>QLabel</extends>
-   <header>qtvcp.widgets.dro_widget</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>DoubleScale</class>
-   <extends>QDoubleSpinBox</extends>
+   <class>PushButton</class>
+   <extends>IndicatedPushButton</extends>
    <header>qtvcp.widgets.simple_widgets</header>
   </customwidget>
   <customwidget>
@@ -15430,25 +15138,45 @@ CONFIG</string>
    <header>qtvcp.widgets.simple_widgets</header>
   </customwidget>
   <customwidget>
+   <class>AxisToolButton</class>
+   <extends>QToolButton</extends>
+   <header>qtvcp.widgets.axis_tool_button</header>
+  </customwidget>
+  <customwidget>
    <class>FileManager</class>
    <extends>QWidget</extends>
    <header>qtvcp.widgets.file_manager</header>
   </customwidget>
   <customwidget>
-   <class>GcodeDisplay</class>
-   <extends>QFrame</extends>
-   <header>qtvcp.widgets.gcode_editor</header>
+   <class>DoubleScale</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>qtvcp.widgets.simple_widgets</header>
+  </customwidget>
+  <customwidget>
+   <class>MachineLog</class>
+   <extends>QTextEdit</extends>
+   <header>qtvcp.widgets.machine_log</header>
+  </customwidget>
+  <customwidget>
+   <class>LED</class>
+   <extends>QWidget</extends>
+   <header>qtvcp.widgets.led_widget</header>
+  </customwidget>
+  <customwidget>
+   <class>HALLabel</class>
+   <extends>QLabel</extends>
+   <header>qtvcp.widgets.hal_label</header>
+  </customwidget>
+  <customwidget>
+   <class>GCodeGraphics</class>
+   <extends>QWidget</extends>
+   <header>qtvcp.widgets.gcode_graphics</header>
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>SystemToolButton</class>
-   <extends>QToolButton</extends>
-   <header>qtvcp.widgets.system_tool_button</header>
-  </customwidget>
-  <customwidget>
-   <class>GcodeEditor</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.gcode_editor</header>
+   <class>DROLabel</class>
+   <extends>QLabel</extends>
+   <header>qtvcp.widgets.dro_widget</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -15457,9 +15185,58 @@ CONFIG</string>
    <header>qtvcp.widgets.mdi_history</header>
   </customwidget>
   <customwidget>
+   <class>GcodeEditor</class>
+   <extends>QWidget</extends>
+   <header>qtvcp.widgets.gcode_editor</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>GcodeDisplay</class>
+   <extends>QFrame</extends>
+   <header>qtvcp.widgets.gcode_editor</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>OriginOffsetView</class>
+   <extends>QTableView</extends>
+   <header>qtvcp.widgets.origin_offsetview</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>StatusLabel</class>
+   <extends>QLabel</extends>
+   <header>qtvcp.widgets.status_label</header>
+  </customwidget>
+  <customwidget>
    <class>ActionButton</class>
-   <extends>QPushButton</extends>
+   <extends>IndicatedPushButton</extends>
    <header>qtvcp.widgets.action_button</header>
+  </customwidget>
+  <customwidget>
+   <class>StatusSlider</class>
+   <extends>QSlider</extends>
+   <header>qtvcp.widgets.status_slider</header>
+  </customwidget>
+  <customwidget>
+   <class>ScreenOptions</class>
+   <extends>QWidget</extends>
+   <header>qtvcp.widgets.screen_options</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>JogIncrements</class>
+   <extends>QComboBox</extends>
+   <header>qtvcp.widgets.jog_increments</header>
+  </customwidget>
+  <customwidget>
+   <class>CamView</class>
+   <extends>QWidget</extends>
+   <header>qtvcp.widgets.camview_widget</header>
+  </customwidget>
+  <customwidget>
+   <class>SystemToolButton</class>
+   <extends>QToolButton</extends>
+   <header>qtvcp.widgets.system_tool_button</header>
   </customwidget>
  </customwidgets>
  <resources>

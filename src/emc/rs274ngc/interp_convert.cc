@@ -2603,7 +2603,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
 Returned Value: int
    If any of the following errors occur, this returns the error shown.
    Otherwise, it returns INTERP_OK.
-   1. The g_code argument isnt G_20 or G_21:
+   1. The g_code argument isn't G_20 or G_21:
       NCE_BUG_CODE_NOT_G20_OR_G21
    2. Cutter radius compensation is on:
       NCE_CANNOT_CHANGE_UNITS_WITH_CUTTER_RADIUS_COMP
@@ -3165,8 +3165,8 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   /* The M62-65 commands are used for DIO */
   /* M62 sets a DIO synched with motion
      M63 clears a DIO synched with motion
-     M64 sets a DIO imediately
-     M65 clears a DIO imediately 
+     M64 sets a DIO immediately
+     M65 clears a DIO immediately 
      M66 waits for an input
      M67 reads a digital input
      M68 reads an analog input*/
@@ -3616,6 +3616,16 @@ int Interp::convert_modal_0(int code,    //!< G code, must be from group 0
   if (code == G_10) {
       if(block->l_number == 1 || block->l_number == 10 || block->l_number == 11)
           CHP(convert_setup_tool(block, settings));
+      else if (block->l_number == 0) {
+#define ALWAYS_ALLOW_RELOAD_TOOLDATA
+#ifdef  ALWAYS_ALLOW_RELOAD_TOOLDATA
+          settings->toolchange_flag = true; //refresh actual pos, sync, etc.
+#else
+          int tno = settings->tool_table[0].toolno;
+          if (tno > 0) { ERS("G10 L0 not allowed with loaded tool <%d>\n",tno); }
+#endif
+          RELOAD_TOOLDATA(); // msg to io
+      }
       else
           CHP(convert_setup(block, settings));
   } else if ((code == G_28) || (code == G_30)) {
@@ -4012,12 +4022,13 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     // Unfortunately, random and nonrandom toolchangers use a different
     // number for "invalid tool number":  nonrandom uses 0, random uses -1.
     //
-    if (settings->random_toolchanger)
+    if (settings->random_toolchanger) {
         if (settings->tool_table[0].toolno >= 0) {
             settings->parameters[5400] = settings->tool_table[0].toolno;
         } else {
             settings->parameters[5400] = -1;
-        } else {
+        }
+    } else {
         if (settings->tool_table[0].toolno > 0) {
             settings->parameters[5400] = settings->tool_table[0].toolno;
         } else {
