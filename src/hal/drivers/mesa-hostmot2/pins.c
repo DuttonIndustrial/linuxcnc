@@ -243,6 +243,7 @@ static const char* hm2_get_pin_secondary_name(hm2_pin_t *pin) {
             switch (sec_pin) {
 		case 0x1: return "Data+";
 		case 0x2: return "Data-";
+		case 0x3: return "TxEn";
 	}
         break;
           

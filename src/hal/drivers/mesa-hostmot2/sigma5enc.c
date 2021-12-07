@@ -246,6 +246,7 @@ int defineHalPins(hostmot2_t *hm2, hm2_sigma5enc_instance_t* inst, int id) {
         {"debug.slowclock",         HAL_U32,    HAL_OUT, (void**)&inst->slowclock},
         {"debug.status",            HAL_U32,    HAL_OUT, (void**)&inst->status},
         {"debug.z-counter",         HAL_U32,    HAL_OUT, (void**)&inst->z_counter},
+	{"debug.total-faults",      HAL_U32,    HAL_OUT, (void**)&inst->total_faults},
 
         {"fault",                   HAL_BIT,    HAL_OUT, (void**)&inst->fault},
         {"fault-count",             HAL_U32,    HAL_OUT, (void**)&inst->fault_count},
@@ -457,7 +458,7 @@ int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index)
         *inst->magic2 = 0;
         *inst->magic3 = 0;
         *inst->raw_count = 0;
-        *inst->raw_ref_base = 0;
+        *inst->raw_ref_base = -1.0;
         *inst->raw_ref_angle = 0;
         *inst->reference_data = 0;
         *inst->rotor_offset = 0;
@@ -469,6 +470,7 @@ int hm2_sigma5enc_parse_md(hostmot2_t *hm2, int md_index)
         *inst->slowclock = 0;
         *inst->status = 0;
         *inst->z_counter = 0;
+	*inst->total_faults = 0;
     }
 	
    
@@ -519,7 +521,7 @@ void hm2_sigma5enc_prepare_tram_write(hostmot2_t* hm2) {
 void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, int i, hal_float_t fPeriods, const char* prefix) {
     char register_data[20] = {0};  
   
-    hal_bit_t prev_referenced = *inst->referenced;
+//    hal_bit_t prev_referenced = *inst->referenced;
     hal_bit_t prev_u = *inst->u;
     hal_bit_t prev_v = *inst->v;
     hal_bit_t prev_w = *inst->w;
@@ -547,6 +549,21 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     if(!*inst->run) {
         inst->startup = 1;
         *inst->fault_count = inst->fault_lim;
+	*inst->total_faults = 0;
+	
+	//reset encoder values
+        *inst->raw_ref_base = -1.0;
+        *inst->raw_ref_angle = 0;
+        inst->prev_encoder_count = 0;
+        inst->full_count = 0;
+        inst->index_offset = 0;
+
+        //this will force realignment of rotor after next start
+        *inst->u = 0;
+        *inst->v = 0;
+        *inst->w = 0;
+
+
         return;
     } else {
         if(inst->startup) {
@@ -583,10 +600,14 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
 
     //check for start conditiona
     if(*inst->busy) {
-        HM2_ERR("%s is still receiving at thread read time. Dpll timer settings are incorrect.\n", prefix);
-        *inst->fault = 1;
-        inst->startup = 0;
-        return;
+        if(inst->startup) {
+            *inst->fault_count += inst->fault_inc;
+	} else {
+            HM2_ERR("%s is still receiving at thread read time. Dpll timer settings are incorrect.\n", prefix);
+            *inst->fault = 1;
+        }
+
+	return;
     }
  
     if(inst->pole_count == 0) {
@@ -613,6 +634,11 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     
 
    if(!*inst->data_valid) {
+
+	if(!inst->startup) {
+		*inst->total_faults += 1;
+	}
+
         *inst->fault_count += inst->fault_inc;
         return;
    }
@@ -634,8 +660,8 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
                           inst->z_counter);
 
  
-    if(prev_referenced && !*inst->referenced) {
-        *inst->raw_ref_base = 0;
+/*    if(prev_referenced && !*inst->referenced) {
+        *inst->raw_ref_base = -1.0;
         *inst->raw_ref_angle = 0;
         inst->prev_encoder_count = 0;
         inst->full_count = 0;
@@ -646,11 +672,11 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
         *inst->v = 0;
         *inst->w = 0;
 
-        *inst->fault = 1;
+        *inst->fault_count += inst->fault_inc;
         HM2_ERR("%s reference was lost. (Encoder power failure?)  Rehoming necessary.\n", prefix);
         return;
     }
-
+*/
 
 
     
@@ -730,16 +756,17 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
 
     
     
-    //  when the encoder first powers on it does not know where the index point is until the encoder
-    //  crosses the Z point.
+    //  when the z_counter is passed we capture raw_ref_base
     //  The z point is always at rotor position low edge of UVW(101).
-    if(!prev_referenced  && *inst->referenced) {
+    if(prev_z_counter != *inst->z_counter) {
+		
+
             //capture raw angle when reference first seen
             *inst->raw_ref_base = *inst->raw_angle;
     }
 
     //    once we know reference_base we can compute reference_angle.
-    if(*inst->referenced) {
+    if(*inst->raw_ref_base >= 0.0) {
             //the raw ref base is close to but not exactly the reference point
             //here we compute the exact angle of the reference position
 
@@ -757,15 +784,12 @@ void hm2_sigma5enc_process_rx(hostmot2_t* hm2, hm2_sigma5enc_instance_t* inst, i
     }
 
     
-    //    More than a full turn past Z point must occur before the z counter changes. 
-    //   This prevents erratic homing behavior when the Z hall sensor is close 
-    //    to the home switch.
-    if(*inst->index_enable && *inst->referenced && (prev_z_counter != *inst->z_counter)) {
+    if(*inst->index_enable && (prev_z_counter != *inst->z_counter)) {
         inst->index_offset = inst->full_count - (inst->ppr * angle_diff(*inst->angle, 0));
         *inst->index_enable = 0;
 
         //check that rotor_angle is between mid 100 and mid 101
-        if(*inst->rotor_angle < hallRotorAngle(1, 1, 0, 0) || *inst->rotor_angle > hallRotorAngle(1, 1, 0, 1)) {
+        if(*inst->rotor_angle <= hallRotorAngle(1, 1, 0, 0) || *inst->rotor_angle >= hallRotorAngle(1, 1, 0, 1)) {
             *inst->fault = 1;
             HM2_ERR("%s rotor_angle_bug. Reference point doesn't match expected rotor_angle. Between %f, %f -> Rotor Angle at %f\n", prefix, hallRotorAngle(1, 1, 0, 0), hallRotorAngle(1, 1, 0, 1), *inst->rotor_angle);
             return;

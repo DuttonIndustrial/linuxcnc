@@ -1279,8 +1279,10 @@ typedef struct {
     hal_u32_t*   rx1;              //bytes 5-8 of raw received data
     hal_u32_t*   rx2;              //bytes 9-12 of raw received data
     hal_u32_t*   slowclock;
-    hal_u32_t*   status;            //status data returned from hostmot2
-    hal_u32_t*   z_counter;         //de/increments after passing z hall sensor
+    hal_u32_t*   status;           //status data returned from hostmot2
+    hal_u32_t*   z_counter;        //deincrements after passing z hall sensor
+    hal_u32_t*   total_faults;     //total number of faults encountered
+   
 
     //pins
     hal_float_t* angle;         //real encoder angle from index point
