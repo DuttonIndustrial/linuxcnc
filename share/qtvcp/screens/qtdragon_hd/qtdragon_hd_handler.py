@@ -530,6 +530,8 @@ class HandlerClass:
     # main button bar
     def main_tab_changed(self, btn):
         index = btn.property("index")
+        if index == self.w.main_tab_widget.currentIndex():
+            self.w.stackedWidget_dro.setCurrentIndex(0)
         if index is None: return
         # if in automode still allow settings to show so override linits can be used
         if STATUS.is_auto_mode() and index != 8:
@@ -678,9 +680,9 @@ class HandlerClass:
             ACTION.CALL_DIALOG(mess)
 
     def btn_home_clicked(self):
-        joint = self.w.sender().property('joint')
-        axis = INFO.GET_NAME_FROM_JOINT.get(joint).lower()
-        if self.w["dro_axis_{}".format(axis)].property('isHomed') is True:
+        axisnum = self.w.sender().property('joint')
+        joint = INFO.get_jnum_from_axisnum(axisnum)
+        if STATUS.is_joint_homed(joint) == True:
             ACTION.SET_MACHINE_UNHOMED(joint)
         else:
             ACTION.SET_MACHINE_HOMING(joint)
@@ -913,26 +915,9 @@ class HandlerClass:
         max_probe = self.w.lineEdit_max_probe.text()
         search_vel = self.w.lineEdit_search_vel.text()
         probe_vel = self.w.lineEdit_probe_vel.text()
-        ACTION.CALL_MDI("G21 G49")
-        ACTION.CALL_MDI("G10 L20 P0 Z0")
-        ACTION.CALL_MDI("G91")
-        command = "G38.2 Z-{} F{}".format(max_probe, search_vel)
-        if ACTION.CALL_MDI_WAIT(command, 10) == -1:
-            ACTION.CALL_MDI("G90")
-            return
-        if ACTION.CALL_MDI_WAIT("G1 Z4.0"):
-            ACTION.CALL_MDI("G90")
-            return
-        ACTION.CALL_MDI("G4 P0.5")
-        command = "G38.2 Z-4.4 F{}".format(probe_vel)
-        if ACTION.CALL_MDI_WAIT(command, 10) == -1:
-            ACTION.CALL_MDI("G90")
-            return
-        command = "G10 L20 P0 Z{}".format(z_offset)
-        ACTION.CALL_MDI_WAIT(command)
-        command = "G1 Z10 F{}".format(search_vel)
-        ACTION.CALL_MDI_WAIT(command)
-        ACTION.CALL_MDI("G90")
+        rtn = ACTION.TOUCHPLATE_TOUCHOFF(search_vel, probe_vel, max_probe, z_offset)
+        if rtn == 0:
+            self.add_status("Touchoff routine is already running")
 
     def kb_jog(self, state, joint, direction, fast = False, linear = True):
         if not STATUS.is_man_mode() or not STATUS.machine_is_on():

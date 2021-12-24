@@ -101,6 +101,8 @@ class QTVCP:
     def __init__(self):
         sys.excepthook = self.excepthook
         INIPATH = None
+        INITITLE = INFO.TITLE
+        INIICON = INFO.ICON
         usage = "usage: %prog [options] myfile.ui"
         parser = OptionParser(usage=usage)
         parser.disable_interspersed_args()
@@ -114,7 +116,6 @@ class QTVCP:
                 # pop out the ini path
                 INIPATH = sys.argv.pop(i)
                 break
-
         (opts, args) = parser.parse_args()
 
         # so web engine can load local images
@@ -272,7 +273,9 @@ Pressing cancel will close linuxcnc.""" % target)
 
         # title
         if INIPATH:
-            title = 'QTvcp-Screen-%s'% opts.component
+            if (INITITLE == ""):
+                INITITLE='QTvcp-Screen-%s'% opts.component
+            title = INITITLE 
         else:
             title = 'QTvcp-Panel-%s'% opts.component
         window.setWindowTitle(title)
@@ -285,13 +288,13 @@ Pressing cancel will close linuxcnc.""" % target)
             if "initialized__" in dir(window.handler_instance):
                 LOG.debug('''Calling the handler file's initialized__ function''')
                 window.handler_instance.initialized__()
-        # add any external handler ovveride user commands
-        if INFO.USER_COMMAND_FILE is None:
-            INFO.USER_COMMAND_FILE = os.path.join(PATH.CONFIGPATH,'.{}rc'.format(PATH.BASEPATH))
-        INFO.USER_COMMAND_FILE = INFO.USER_COMMAND_FILE.replace('CONFIGFOLDER',PATH.CONFIGPATH)
-        INFO.USER_COMMAND_FILE = INFO.USER_COMMAND_FILE.replace('WORKINGFOLDER',PATH.WORKINGDIR)
+            # add any external handler override user commands
+            if INFO.USER_COMMAND_FILE is None:
+                INFO.USER_COMMAND_FILE = os.path.join(PATH.CONFIGPATH,'.{}rc'.format(PATH.BASEPATH))
+            INFO.USER_COMMAND_FILE = INFO.USER_COMMAND_FILE.replace('CONFIGFOLDER',PATH.CONFIGPATH)
+            INFO.USER_COMMAND_FILE = INFO.USER_COMMAND_FILE.replace('WORKINGFOLDER',PATH.WORKINGDIR)
 
-        window.handler_instance.call_user_command_(window.handler_instance, INFO.USER_COMMAND_FILE)
+            window.handler_instance.call_user_command_(window.handler_instance, INFO.USER_COMMAND_FILE)
 
         # All Widgets should be added now - synch them to linuxcnc
         STATUS.forced_update()
@@ -370,10 +373,17 @@ Pressing cancel will close linuxcnc.""" % target)
             window.showFullScreen()
         else:
             self.panel.set_preference_geometry()
+
         window.show()
         if INIPATH:
             self.postgui()
             self.postgui_cmd()
+            if (INIICON == ""):
+                window.setWindowIcon(QtGui.QIcon(os.path.join(PATH.IMAGEDIR, 'linuxcncicon.png')))
+            else:
+                window.setWindowIcon(QtGui.QIcon(os.path.join(PATH.CONFIGPATH, INIICON)))
+        else:
+            window.setWindowIcon(QtGui.QIcon(os.path.join(PATH.IMAGEDIR, 'linuxcnc-wizard.gif')))
 
         # catch control c and terminate signals
         signal.signal(signal.SIGTERM, self.shutdown)

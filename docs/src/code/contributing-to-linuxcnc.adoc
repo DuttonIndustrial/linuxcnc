@@ -14,7 +14,7 @@ programs and libraries, and the source text for the documentation.
 
 The two main ways that project developers communicate with each other are:
 
-* Via IRC, at #linuxcnc-devel on FreeNode.
+* Via IRC, at irc://irc.libera.chat/%23linuxcnc-devel[#linuxcnc-devel on Libera.chat].
 
 * Via email, on the developers' mailing list:
   https://lists.sourceforge.net/lists/listinfo/emc-developers
@@ -266,6 +266,26 @@ nice linear history.  When you rebase, you always retain your work as
 revisions that are ahead of origin/master, so you can do things like
 `git format-patch` them to share with others without pushing to the
 central repository.
+
+
+== Translations
+
+The LinuxCNC project uses gettext to translate the software into
+many languages.  We welcome contributions and help in this area!
+Improving and extending the translations is easy: you don't need to know
+any programming, and you don't need to install any special translation
+programs or other software.
+
+The easiest way to help with translations is using Weblate,
+an open-source web service.  Our translation project is here:
+https://hosted.weblate.org/projects/linuxcnc/
+
+Documentation on how to use Weblate is here:
+https://docs.weblate.org/en/latest/user/basic.html
+
+If web services are not your thing, you can also work on translations
+using a variety of local gettext translator apps including gtranslator,
+poedit, and many more.
 
 
 == Other ways to contribute
