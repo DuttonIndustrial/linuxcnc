@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 #
 # Qtvcp Widgets
 # Copyright (c) 2017  Chris Morley <chrisinnanaimo@hotmail.com>
@@ -20,7 +20,7 @@ import os
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
-from qtvcp.widgets.entry_widget import TouchInputWidget
+from qtvcp.widgets.entry_widget import TouchInterface
 from qtvcp.core import Status, Action, Info
 from qtvcp import logger
 
@@ -41,7 +41,7 @@ if not INFO.LINUXCNC_IS_RUNNING:
 try:
     from PyQt5 import QtSvg
 except:
-    LOG.critical("Qtvcp error with macro_widget - is package python-pyqt5.qtsvg installed?")
+    LOG.critical("Qtvcp error with macro_widget - is package python3-pyqt5.qtsvg installed?")
 
 ###############################################################
 # helper widget for SVG display on Button
@@ -98,6 +98,9 @@ class CustomSVG(QtSvg.QSvgWidget):
         else:
             LOG.error("MacrosTab SVG-No Layer Found: {}".format(temp))
 
+    def sizeHint(self):
+        return QtCore.QSize(200, 200)
+
     def paintEvent(self, event):
         qp = QtGui.QPainter()
         qp.begin(self)
@@ -110,7 +113,7 @@ class CustomSVG(QtSvg.QSvgWidget):
 # Macro tab widget
 #
 # macro tab widget parses the subroutine path for /lathe
-# It then opens the .ngc files ther eand searches for keynames
+# It then opens the .ngc files there and searches for keynames
 # using these key names it puts together a tab widget with svg file pics
 # the svg file should be in the same folder
 ###############################################################################
@@ -121,6 +124,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         # id names for what dialog we want launched
         self.load_dialog_code = 'LOAD'
         self.save_dialog_code = 'SAVE'
+        self._request_name = 'CALCULATOR'
 
         self.stack = QtWidgets.QStackedWidget()
 
@@ -157,9 +161,18 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         # add everything else
         self.buildStack()
 
+    def sizeHint(self):
+        return QtCore.QSize(200, 200)
+
     def _hal_init(self):
         self.runButton.setEnabled(False)
-        STATUS.connect('not-all-homed', lambda w, axis: self.runButton.setEnabled(False))
+        STATUS.connect('state-off', lambda w: self.runButton.setEnabled(False))
+        STATUS.connect('state-estop', lambda w: self.runButton.setEnabled(False))
+        STATUS.connect('interp-idle', lambda w: self.runButton.setEnabled(STATUS.machine_is_on()
+                                                                and (STATUS.is_all_homed()
+                                                                or INFO.NO_HOME_REQUIRED)))
+        STATUS.connect('interp-run', lambda w: self.runButton.setEnabled(False))
+        STATUS.connect('not-all-homed', lambda w, axis: self.runButton.setEnabled(False or INFO.NO_HOME_REQUIRED))
         STATUS.connect('all-homed', lambda w: self.runButton.setEnabled(True))
         STATUS.connect('general',self.returnFromDialog)
 
@@ -169,7 +182,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
     # first find macros
     # then build a menu page
     # then build the stack
-    # anything goes wrong display an eror page
+    # anything goes wrong display an error page
     def buildStack(self):
         macroFlag = False
         for path in INFO.SUB_PATH_LIST:
@@ -189,48 +202,78 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
                 # of these arrays
                 for i, tName in enumerate(tabName):
                     # make a widget that is added to the stack
-                    w = TouchInputWidget()
+                    # TouchInterface can pop an entry dialog on focus
+                    w = TouchInterface(self)
+                    w.setObjectName(tName)
+                    w.keyboard_enable = True
+                    # redirect Touchinterface call to our function
+                    w.callDialog = self.getNumbers
+
+                    # main layout of this tab
                     hbox = QtWidgets.QHBoxLayout(w)
                     #hbox.addStretch(1)
+
+                    # vertical layout for labels and entries
                     vbox = QtWidgets.QVBoxLayout()
-                    w.setObjectName(tName)
+
                     # add labels and edits
                     # self[tName][0] is the list of name text and defaults pairs
                     for n, name in enumerate(self[tName][0]):
+                        # if no list of names then continue looking
+                        if name[0]=='':continue
+
+                        # layout holds label and entry for one line
+                        hbox2 = QtWidgets.QHBoxLayout()
+                        # make a label
                         l = QtWidgets.QLabel(name[0])
+
+                        # make appropriate entries:
+                        # radio buttons?
                         if name[1].lower() in('false', 'true'):
                             self['%s%d' % (tName, n)] = QtWidgets.QRadioButton()
                             if name[1].lower() == 'true':
                                 self['%s%d' % (tName, n)].setChecked(True)
+                        # line edits that will pop an entry dialog:
                         else:
                             self['%s%d' % (tName, n)] = QtWidgets.QLineEdit()
                             self['%s%d' % (tName, n)].keyboard_type = 'numeric'
                             self['%s%d' % (tName, n)].setText(name[1])
-                        vbox.addWidget(l)
-                        vbox.addWidget(self['%s%d' % (tName, n)])
-                    #add the SVG pic layer
+                        hbox2.addWidget(l)
+                        hbox2.addWidget(self['%s%d' % (tName, n)])
+
+                        # add label/entry layout to vertical layout fr this tab
+                        vbox.addLayout(hbox2)
+
+                    #add the SVG/image pic layer
                     img_info = self[tName][1]
                     #print path+svg_info[0], svg_info[1]
+                    # SVG?
                     if img_info[0].endswith('.svg'):
                         svgpath = os.path.join(path, img_info[0])
                         self['sw%d' % i] = CustomSVG(svgpath,  int(img_info[1]))
+                        self['sw%d' % i].setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding,
+                                    QtWidgets.QSizePolicy.MinimumExpanding)
+                    # some other supported image file?
                     else:
+                        # get image path
                         try:
-                            print self[tName][1][1]
+                            #print(self[tName][1][1])
                             imgpath = os.path.join(path, self[tName][1][1])
                         except:
                             imgpath = os.path.join(path, img_info[0])
-                        #self['sw%d' % i] = QtWidgets.QPushButton()
-                        #self['sw%d' % i].setIcon(QtGui.QIcon(imgpath))
+
+                        # use a qlabel to display image
                         self['sw%d' % i] = QtWidgets.QLabel()
                         self['sw%d' % i].setPixmap(QtGui.QPixmap(imgpath))
-                        self['sw%d' % i]. setScaledContents(True)
-                        #self['sw%d' % i].setSizeHint(300, 300)
-                        self['sw%d' % i].setSizePolicy(QtWidgets.QSizePolicy.Expanding,QtWidgets.QSizePolicy.Expanding)
+                        self['sw%d' % i].setScaledContents(True)
+                        self['sw%d' % i].setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding,
+                                    QtWidgets.QSizePolicy.MinimumExpanding)
+
+                    # add image to the main layout for this tab
                     hbox.addWidget(self['sw%d' % i])
-                    vbox.addStretch(1)
+                    # add label/entry stack to the main layout for this tab
                     hbox.addLayout(vbox)
-                    # add the widget to the stack
+                    # add this tab to the stack
                     self.stack.addWidget(w)
         # No macros found in any path
         # show a message
@@ -247,8 +290,8 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         vbox = QtWidgets.QVBoxLayout()
         grid = QtWidgets.QGridLayout()
         grid.setSpacing(10)
-        # we grid them in columns of (arbritrarily) 5
-        # hopefully we don;t have too many macros...
+        # we grid them in columns of (arbitrarily) 5
+        # hopefully we don't have too many macros...
         for i, tName in enumerate(tabNames):
             svg_name = self[tName][1][0]
             if svg_name.endswith('.svg'):
@@ -263,13 +306,12 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
             else:
                 imgpath = os.path.join(path, svg_name)
                 btn = QtWidgets.QPushButton()
-                btn.setIcon(QtGui.QIcon(imgpath))
-                btn.setIconSize(QtCore.QSize(30, 30)) 
+                btn.setStyleSheet("border-image: url(" + imgpath + ");")
             btn.setToolTip('Macro: {}'.format(tName))
             btn.setWhatsThis('This button will select The entry page for the {} macro'.format(tName))
             btn.clicked.connect(self.menuButtonPress(i))
             btn.setSizePolicy(QtWidgets.QSizePolicy.Preferred,
-                              QtWidgets.QSizePolicy.Expanding)
+                              QtWidgets.QSizePolicy.Preferred)
             grid.addWidget(btn, row, col, 1, 1)
             row += 1
             if row > 4:
@@ -288,7 +330,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         w = QtWidgets.QWidget()
         vbox = QtWidgets.QVBoxLayout(w)
         vbox.addStretch(1)
-        mess = QtWidgets.QLabel('No Usable Macros Found.\nLooked in path(s) specified in INI file under heading [RS274NGC],\nSUBROUTINE_PATH=')
+        mess = QtWidgets.QLabel('No Usable Macros Found.\nLooked in path(s) specified in INI file under heading:\n[RS274NGC],\nSUBROUTINE_PATH=')
         vbox.addWidget(mess)
         mess = QtWidgets.QLabel( '\n'.join(map(str, INFO.SUB_PATH_LIST)))
         vbox.addWidget(mess)
@@ -320,7 +362,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
                         # check if they have the magic comments
                         if 'MACROCOMMAND' in first_line and \
                                 'MACRODEFAULT' in second_line and \
-                                ('MACROSVG' in third_line or 
+                                ('MACROSVG' in third_line or
                                     'MACROIMAGE' in third_line):
                             name = os.path.splitext(f)[0]
                             # yes, now keep everything after '='
@@ -383,6 +425,8 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         macro = name
         #print 'macro', macro
         for num, i in enumerate(self[name][0]):
+            # check for macro that needs no data
+            if i == ('', ''):break
             # Look for a radio button instance so we can convert to integers
             # other wise we assume text
             if isinstance(self['%s%d' % (name, num)], QtWidgets.QRadioButton):
@@ -446,7 +490,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         self.getSaveFileName()
 
     def openReturn(self, path):
-        LOG.debug("Open return filename choosen: {}".format(path))
+        LOG.debug("Open return filename chosen: {}".format(path))
         file = QtCore.QFile(path)
         file.open(QtCore.QFile.ReadOnly)
         name = str(self.stack.currentWidget().objectName())
@@ -454,7 +498,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
             readLine = file.readLine()
             try:
                 # Python v2.
-                readLine = unicode(readLine, encoding='utf8')
+                readLine = str(readLine, encoding='utf8')
             except NameError:
                 # Python v3.
                 readLine = str(readLine, encoding='utf8')
@@ -472,7 +516,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
     # save the current screen data to file picked by the user.
     # it's a plain text file
     def saveReturn(self, path):
-        LOG.debug("Save return filename choosen: {}".format(path))
+        LOG.debug("Save return filename chosen: {}".format(path))
         name = str(self.stack.currentWidget().objectName())
         if name == '': return
         file = QtCore.QFile(path)
@@ -488,16 +532,23 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
                 line =  '%s,%s,    %s\n'%( widgetname, str(data), i[0])
                 QtCore.QTextStream(file) << line
         else:
-            QMessageBox.information(self, "Unable to open file",
+            QtWidgets.QMessageBox.information(self, "Unable to open file",
                     file.errorString())
 
     # we do this instead of directly so the dialog version's title changes
-    # when it's overriden
+    # when it's overridden
     def setTitle(self, string):
         self.setWindowTitle(string)
 
+    # get numeric data
+    def getNumbers(self,widget,ktype):
+        mess = {'NAME':self._request_name,'ID':'%s__macro',
+                'PRELOAD':float(widget.text()),
+            'TITLE':'Macro Entry Calculator','WIDGET':widget}
+        STATUS.emit('dialog-request', mess)
+
     # request the system to pop a load path picker dialog
-    # do this so the system is consistant and things like dialog
+    # do this so the system is consistent and things like dialog
     # placement are done.
     def getFileName(self):
         mess = {'NAME':self.load_dialog_code,'ID':'%s__' % self.objectName(),
@@ -508,7 +559,7 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
         STATUS.emit('dialog-request', mess)
 
     # request the system to pop a save path picker dialog
-    # do this so the system is consistant and things like dialog
+    # do this so the system is consistent and things like dialog
     # placement are done.
     def getSaveFileName(self):
         mess = {'NAME':self.save_dialog_code,'ID':'%s__' % self.objectName(),
@@ -528,6 +579,13 @@ class MacroTab(QtWidgets.QWidget, _HalWidgetBase):
             code = bool(message.get('ID') == '%s__'% self.objectName())
             if path and code:
                 self.saveReturn(path)
+        elif message.get('NAME') == self._request_name:
+            num = message.get('RETURN')
+            code = bool(message.get('ID') == '%s__macro')
+            widget = message.get('WIDGET')
+            if code and widget is not None:
+                if num is not None:
+                    widget.setText(str(num))
 
     # usual boiler code
     # (used so we can use code such as self[SomeDataName]

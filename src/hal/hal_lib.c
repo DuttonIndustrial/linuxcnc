@@ -28,14 +28,14 @@
 */
 
 /** This library is free software; you can redistribute it and/or
-    modify it under the terms of version 2.1 of the GNU Lesser General
+    modify it under the terms of version 2 of the GNU Library General
     Public License as published by the Free Software Foundation.
     This library is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public
+    You should have received a copy of the GNU Library General Public
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
@@ -108,8 +108,8 @@ static int init_hal_data(void);
     This is done to improve realtime performance.  'shmalloc_up()'
     is used to allocate data that will be accessed by realtime
     code, while 'shmalloc_dn()' is used to allocate the much
-    larger structures that are accessed only occaisionally during
-    init.  This groups all the realtime data together, inproving
+    larger structures that are accessed only occasionally during
+    init.  This groups all the realtime data together, improving
     cache performance.
 */
 static void *shmalloc_up(long int size);
@@ -261,10 +261,10 @@ int hal_init(const char *name)
     /* initialize the structure */
     comp->comp_id = comp_id;
 #ifdef RTAPI
-    comp->type = 1;
+    comp->type = COMPONENT_TYPE_REALTIME;
     comp->pid = 0;
 #else /* ULAPI */
-    comp->type = 0;
+    comp->type = COMPONENT_TYPE_USER;
     comp->pid = getpid();
 #endif
     comp->ready = 0;
@@ -349,6 +349,7 @@ int hal_exit(int comp_id)
     --ref_cnt;
 #ifdef ULAPI
     if(ref_cnt == 0) {
+        rtapi_print_msg(RTAPI_MSG_DBG, "HAL: releasing RTAPI resources\n");
 	/* release RTAPI resources */
 	rtapi_shmem_delete(lib_mem_id, lib_module_id);
 	rtapi_exit(lib_module_id);
@@ -464,6 +465,46 @@ int hal_ready(int comp_id) {
         return -EINVAL;
     }
     comp->ready = 1;
+    rtapi_mutex_give(&(hal_data->mutex));
+    return 0;
+}
+
+int hal_unready(int comp_id) {
+    int next;
+    hal_comp_t *comp;
+
+    rtapi_mutex_get(&(hal_data->mutex));
+
+    /* search component list for 'comp_id' */
+    next = hal_data->comp_list_ptr;
+    if (next == 0) {
+	/* list is empty - should never happen, but... */
+	rtapi_mutex_give(&(hal_data->mutex));
+	rtapi_print_msg(RTAPI_MSG_ERR,
+	    "HAL: ERROR: component %d not found\n", comp_id);
+	return -EINVAL;
+    }
+
+    comp = SHMPTR(next);
+    while (comp->comp_id != comp_id) {
+	/* not a match, try the next one */
+	next = comp->next_ptr;
+	if (next == 0) {
+	    /* reached end of list without finding component */
+	    rtapi_mutex_give(&(hal_data->mutex));
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+		"HAL: ERROR: component %d not found\n", comp_id);
+	    return -EINVAL;
+	}
+	comp = SHMPTR(next);
+    }
+    if(comp->ready < 1) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                "HAL: ERROR: Component '%s' already unready\n", comp->name);
+        rtapi_mutex_give(&(hal_data->mutex));
+        return -EINVAL;
+    }
+    comp->ready = 0;
     rtapi_mutex_give(&(hal_data->mutex));
     return 0;
 }
@@ -1144,7 +1185,7 @@ int hal_link(const char *pin_name, const char *sig_name)
 	/* ports can only have one reader */
 	rtapi_mutex_give(&(hal_data->mutex));
 	rtapi_print_msg(RTAPI_MSG_ERR,
-	    "HAL: ERROR: siganl '%s' can only have one input pin\n", sig_name);
+	    "HAL: ERROR: signal '%s' can only have one input pin\n", sig_name);
 	return -EINVAL;
     }
     
@@ -1673,6 +1714,57 @@ int hal_param_alias(const char *param_name, const char *alias)
 }
 
 /***********************************************************************
+*                 PIN/SIG/PARAM GETTER FUNCTIONS                       *
+************************************************************************/
+
+int hal_get_pin_value_by_name(
+    const char *hal_name, hal_type_t *type, hal_data_u **data, bool *connected)
+{
+    hal_pin_t *pin;
+    hal_sig_t *sig;
+    if ((pin = halpr_find_pin_by_name(hal_name)) == NULL)
+        return -1;
+
+    if (connected != NULL)
+        *connected = pin && pin->signal;
+    *type = pin->type;
+    if (pin->signal != 0) {
+        sig = (hal_sig_t *) SHMPTR(pin->signal);
+        *data = (hal_data_u *) SHMPTR(sig->data_ptr);
+    } else {
+        *data = (hal_data_u *) &(pin->dummysig);
+    }
+    return 0;
+}
+
+int hal_get_signal_value_by_name(
+    const char *hal_name, hal_type_t *type, hal_data_u **data, bool *has_writers)
+{
+    hal_sig_t *sig;
+    if ((sig = halpr_find_sig_by_name(hal_name)) == NULL)
+        return -1;
+
+    if (has_writers != NULL)
+        *has_writers = !!sig->writers;
+    *type = sig->type;
+    *data = (hal_data_u *) SHMPTR(sig->data_ptr);
+    return 0;
+}
+
+int hal_get_param_value_by_name(
+    const char *hal_name, hal_type_t *type, hal_data_u **data)
+{
+    hal_param_t *param;
+    if ((param = halpr_find_param_by_name(hal_name)) == NULL)
+        return -1;
+
+    *type = param->type;
+    *data = (hal_data_u *) SHMPTR(param->data_ptr);
+    return 0;
+}
+
+
+/***********************************************************************
 *                   EXECUTION RELATED FUNCTIONS                        *
 ************************************************************************/
 
@@ -1716,7 +1808,7 @@ int hal_export_funct(const char *name, void (*funct) (void *, long),
 	    "HAL: ERROR: component %d not found\n", comp_id);
 	return -EINVAL;
     }
-    if (comp->type == 0) {
+    if (comp->type == COMPONENT_TYPE_USER) {
 	/* not a realtime component */
 	rtapi_mutex_give(&(hal_data->mutex));
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1973,7 +2065,7 @@ int hal_create_thread(const char *name, unsigned long period_nsec, int uses_fp)
     hal_ready(new->comp_id);
 
     rtapi_print_msg(RTAPI_MSG_DBG, "HAL: thread created\n");
-    return 0;
+    return new->comp_id;
 }
 
 extern int hal_thread_delete(const char *name)
@@ -2827,19 +2919,30 @@ static void thread_task(void *arg)
 
 static int init_hal_data(void)
 {
-    /* has the block already been initialized? */
+    /* has the hal_data block already been initialized? */
+
+    /* Lock hal_data by taking the mutex, so that two processes
+    don't both try to initialize hal_data at the same time.  NOTE:
+    The first time through, the hal_data memory buffer is fresh from
+    rtapi_shmem_new(), which means it's initialized to all zero bytes.
+    This means hal_data->mutex is valid and unlocked. */
+    rtapi_mutex_get(&(hal_data->mutex));
+
     if (hal_data->version != 0) {
-	/* yes, verify version code */
-	if (hal_data->version == HAL_VER) {
-	    return 0;
-	} else {
-	    rtapi_print_msg(RTAPI_MSG_ERR,
-		"HAL: ERROR: version code mismatch\n");
-	    return -1;
-	}
+        /* hal_data has been initialized already, verify version code */
+        if (hal_data->version == HAL_VER) {
+            rtapi_mutex_give(&(hal_data->mutex));
+            return 0;
+        } else {
+            rtapi_print("HAL: version:%d expected:%d\n",hal_data->version,HAL_VER);
+            rtapi_print_msg(RTAPI_MSG_ERR, "HAL: ERROR: version code mismatch\n");
+            rtapi_mutex_give(&(hal_data->mutex));
+            return -1;
+        }
     }
-    /* no, we need to init it, grab the mutex unconditionally */
-    rtapi_mutex_try(&(hal_data->mutex));
+
+    /* hal_data has *NOT* been initialized yet, we get the honor */
+
     /* set version code so nobody else init's the block */
     hal_data->version = HAL_VER;
     /* initialize everything */
@@ -2878,7 +2981,10 @@ static void *shmalloc_up(long int size)
 
     /* deal with alignment requirements */
     tmp_bot = hal_data->shmem_bot;
-    if (size >= 8) {
+    if (size >= 16) {
+	/* align on 16 byte boundary */
+	tmp_bot = (tmp_bot + 15) & (~15);
+    } else if (size >= 8) {
 	/* align on 8 byte boundary */
 	tmp_bot = (tmp_bot + 7) & (~7);
     } else if (size >= 4) {
@@ -2897,6 +3003,7 @@ static void *shmalloc_up(long int size)
     retval = SHMPTR(tmp_bot);
     hal_data->shmem_bot = tmp_bot + size;
     hal_data->shmem_avail = hal_data->shmem_top - hal_data->shmem_bot;
+    rtapi_print_msg(RTAPI_MSG_DBG, "smalloc_up: shmem available %d\n", hal_data->shmem_avail);
     return retval;
 }
 
@@ -2908,7 +3015,10 @@ static void *shmalloc_dn(long int size)
     /* tentatively allocate memory */
     tmp_top = hal_data->shmem_top - size;
     /* deal with alignment requirements */
-    if (size >= 8) {
+    if (size >= 16) {
+	/* align on 16 byte boundary */
+	tmp_top &= (~15);
+    } else if (size >= 8) {
 	/* align on 8 byte boundary */
 	tmp_top &= (~7);
     } else if (size >= 4) {
@@ -2927,6 +3037,7 @@ static void *shmalloc_dn(long int size)
     retval = SHMPTR(tmp_top);
     hal_data->shmem_top = tmp_top;
     hal_data->shmem_avail = hal_data->shmem_top - hal_data->shmem_bot;
+    rtapi_print_msg(RTAPI_MSG_DBG, "smalloc_dn: shmem available %d\n", hal_data->shmem_avail);
     return retval;
 }
 
@@ -2950,7 +3061,7 @@ hal_comp_t *halpr_alloc_comp_struct(void)
 	p->next_ptr = 0;
 	p->comp_id = 0;
 	p->mem_id = 0;
-	p->type = 0;
+	p->type = COMPONENT_TYPE_USER;
 	p->shmem_base = 0;
 	p->name[0] = '\0';
     }
@@ -3216,7 +3327,7 @@ static void free_comp_struct(hal_comp_t * comp)
     /* clear contents of struct */
     comp->comp_id = 0;
     comp->mem_id = 0;
-    comp->type = 0;
+    comp->type = COMPONENT_TYPE_USER;
     comp->shmem_base = 0;
     comp->name[0] = '\0';
     /* add it to free list */
@@ -3580,7 +3691,7 @@ static bool hal_port_compute_copy(unsigned read,
             *beg_bytes_to_read = 0;
             *final_pos = read + count;
         } else {
-            //read porition of buffer with wrap around to beginnning of buffer
+            //read porition of buffer with wrap around to beginning of buffer
             *end_bytes_to_read = end_bytes_avail;
             *beg_bytes_to_read = count - end_bytes_avail;
             *final_pos = *beg_bytes_to_read;

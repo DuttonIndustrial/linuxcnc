@@ -7,7 +7,7 @@
  * This is the driver for the Vital Systems MOTENC-100 board.
  * The board includes 8 quadrature decoders, 8 analog inputs,
  * 8 analog outputs, 68 digital inputs, 32 digital outputs,
- * programable timer interrupts, a watch dog timer, and a hardware
+ * programmable timer interrupts, a watch dog timer, and a hardware
  * E-STOP circuit.
  *
  * Installation of the driver (realtime only):
@@ -889,7 +889,7 @@ Device_AdcRead(void *arg, long period)
 	}
 	break;
 
-    // Wait for second conversion, start conversion on fisrt 4 channels.
+    // Wait for second conversion, start conversion on first 4 channels.
     case 2:
 	if(Device_AdcRead4(this, 4)){
 	    this->adcState = 1;

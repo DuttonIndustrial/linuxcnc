@@ -273,7 +273,7 @@ int pmCircleTangentVector(PmCircle const * const circle,
 
 
 /**
- * Calulate the unit tangent vector at the start of a move for any segment.
+ * Calculate the unit tangent vector at the start of a move for any segment.
  */
 int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out) {
 
@@ -295,7 +295,7 @@ int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const 
 }
 
 /**
- * Calulate the unit tangent vector at the end of a move for any segment.
+ * Calculate the unit tangent vector at the end of a move for any segment.
  */
 int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out) {
 
@@ -662,8 +662,8 @@ int tcSetupMotion(TC_STRUCT * const tc,
     tc->maxvel = ini_maxvel;
 
     tc->reqvel = vel;
-    // Initial guess at target velocity is just the requested velocity
-    tc->target_vel = vel;
+    // To be computed by velocity optimization / spindle-sync calculations
+    tc->target_vel = 0;
     // To be filled in by tangent calculation, negative = invalid (KLUDGE)
     tcInitKinkProperties(tc);
 
@@ -845,7 +845,7 @@ int pmRigidTapInit(PmRigidTap * const tap,
     // Setup initial tap state
     tap->reversal_target = tap->xyz.tmag;
     tap->reversal_scale = reversal_scale;
-    tap->state = TAPPING;
+    tap->state = RIGIDTAP_START;
     return TP_ERR_OK;
 
 }

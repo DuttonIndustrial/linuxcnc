@@ -6,7 +6,7 @@
 /** Copyright (C) 2003 John Kasunich
                        <jmkasunich AT users DOT sourceforge DOT net>
 
-    Other contributers:
+    Other contributors:
                        Martin Kuhnle
                        <mkuhnle AT users DOT sourceforge DOT net>
                        Alex Joni
@@ -43,6 +43,7 @@
 */
 
 #include "config.h"
+#include "emc/linuxcnc.h"
 
 #ifndef NO_INI
 #include "inifile.h"		/* iniFind() from libnml */
@@ -138,9 +139,11 @@ struct halcmd_command halcmd_commands[] = {
     {"alias",   FUNCT(do_alias_cmd),   A_THREE },
     {"delf",    FUNCT(do_delf_cmd),    A_TWO | A_OPTIONAL },
     {"delsig",  FUNCT(do_delsig_cmd),  A_ONE },
+    {"debug",   FUNCT(do_set_debug_cmd),A_ONE },
     {"echo",    FUNCT(do_echo_cmd),    A_ZERO },
     {"getp",    FUNCT(do_getp_cmd),    A_ONE },
     {"gets",    FUNCT(do_gets_cmd),    A_ONE },
+    {"print",   FUNCT(do_print_cmd),   A_ONE | A_OPTIONAL},
     {"ptype",   FUNCT(do_ptype_cmd),   A_ONE },
     {"stype",   FUNCT(do_stype_cmd),   A_ONE },
     {"help",    FUNCT(do_help_cmd),    A_ONE | A_OPTIONAL },
@@ -185,7 +188,7 @@ static int compare_command(const void *namep, const void *commandp) {
 }
 
 
-pid_t hal_systemv_nowait(char *const argv[]) {
+pid_t hal_systemv_nowait(const char *const argv[]) {
     pid_t pid;
     int n;
 
@@ -220,7 +223,7 @@ pid_t hal_systemv_nowait(char *const argv[]) {
         }
 	rtapi_print_msg(RTAPI_MSG_DBG, "\n" );
         /* call execv() to invoke command */
-	execvp(argv[0], argv);
+	execvp(argv[0], (char * const *)argv);
 	/* should never get here */
 	halcmd_error("execv(%s): %s\n", argv[0], strerror(errno) );
 	exit(1);
@@ -232,7 +235,7 @@ pid_t hal_systemv_nowait(char *const argv[]) {
     return pid;
 }
 
-int hal_systemv(char *const argv[]) {
+int hal_systemv(const char *const argv[]) {
     pid_t pid;
     int status;
     int retval;
@@ -675,10 +678,10 @@ static int strip_comments ( char *buf )
 
 */
 static int strlimcpy(char **dest, char *src, int srclen, int *destspace) {
-    if (*destspace < srclen) {
+    if (*destspace < srclen+1) {
 	return -1;
     } else {
-	strncpy(*dest, src, srclen);
+	strncpy(*dest, src, *destspace);
 	(*dest)[srclen] = '\0';
 	srclen = strlen(*dest);		/* use the actual number of bytes copied */
 	*destspace -= srclen;
@@ -754,7 +757,8 @@ static int replace_vars(char *source_str, char *dest_str, int max_chars, char **
 		replacement = getenv(var);
 		if (replacement == NULL) 
                 {
-                    snprintf(info, sizeof(info), "%s", var);
+                    size_t ret = snprintf(info, sizeof(info), "%s", var);
+		    if (ret >= sizeof(info)) return -7;
                     *detail = info;
 		    return -4;
                 }
@@ -796,7 +800,8 @@ static int replace_vars(char *source_str, char *dest_str, int max_chars, char **
 		}
 		if (replacement==NULL) {
                     *detail = info;
-                    snprintf(info, sizeof(info), "[%s]%s", sec, var);
+                    size_t ret = snprintf(info, sizeof(info), "[%s]%s", sec, var);
+		    if (ret >= sizeof(info)) return -7;
 		    return -5;
                 }
 		if (strlimcpy(&dp, replacement, strlen(replacement), &buf_space) < 0)

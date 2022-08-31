@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 #
 # Qtvcp widget
 # Copyright (c) 2017 Chris Morley
@@ -16,9 +16,11 @@
 
 import os
 
-from PyQt5.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QDialog
-from PyQt5.QtCore import Qt, QEvent, pyqtSlot, pyqtProperty, QChildEvent
-from PyQt5.QtGui import QColor, QImage, QResizeEvent, QPainter
+from PyQt5.QtWidgets import (QWidget, QLabel, QHBoxLayout,
+                QVBoxLayout, QPushButton, QDialog, QProgressBar)
+from PyQt5.QtCore import (Qt, QEvent, pyqtSlot, pyqtProperty, QChildEvent,
+                 )
+from PyQt5.QtGui import QColor, QImage, QResizeEvent, QPainter, QMoveEvent
 
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
 from qtvcp.core import Status
@@ -32,7 +34,7 @@ if __name__ != '__main__':
 LOG = logger.getLogger(__name__)
 
 # Set the log level for this module
-# LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
+#LOG.setLevel(logger.DEBUG) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 
 ################################################################
@@ -47,21 +49,24 @@ class OverlayWidget(QWidget):
         self.top_level = parent
         super(OverlayWidget, self).__init__(parent)
         self.parent = parent
-        self.setAttribute(Qt.WA_NoSystemBackground)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
-#        self.setWindowFlags( self.windowFlags() |Qt.Tool |
-#                        Qt.FramelessWindowHint | Qt.Dialog |
-#                             Qt.WindowStaysOnTopHint |Qt.WindowSystemMenuHint)
+        #self.setAttribute(Qt.WA_NoSystemBackground)
+        #self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        self.setWindowFlags( self.windowFlags() |Qt.Tool |
+                        Qt.FramelessWindowHint  |
+                             Qt.WindowStaysOnTopHint )
+        if not self.parent is None:
+            self.parent.installEventFilter(self)
 
     # There seems to be no way to get the very top level widget
     # in QT the parent widget can be owned in another parent
-    # this addes an event filter the widget in 'top_level'
-    # so we can track what is happenning to it.
+    # this adds an event filter the widget in 'top_level'
+    # so we can track what is happening to it.
     def newParent(self):
         self.parent = self.top_level
         self.last = self.parent
         if self.last is not None:
-            LOG.debug('last removed: {}'.format(self.last))
+            LOG.debug('last removed: {} NEW:{}'.format(self.last, self.parent))
             self.last.removeEventFilter(self)
         if not self.parent: return
         self.parent.installEventFilter(self)
@@ -82,8 +87,8 @@ class OverlayWidget(QWidget):
             if event.type() == QEvent.Resize:
                 #print 'resize'
                 self.resize(QResizeEvent.size(event))
-            #elif event.type() == QEvent.Move:
-                #self.move(QMoveEvent.pos(event))
+            elif event.type() == QEvent.Move:
+                self.move(QMoveEvent.pos(event))
             elif(event.type() == QEvent.ChildAdded):
                 #print 'CHILD',QChildEvent.child(event)
                 if not QChildEvent.child(event) is QDialog:
@@ -135,15 +140,16 @@ class FocusOverlay(OverlayWidget, _HalWidgetBase):
 
     # This is how we plant the very top level parent into
     # our overlay widget
-    # QTVCP_INSTANCE is not accessable from Designer
+    # QTVCP_INSTANCE is not accessible from Designer
     # it should work with any main window but doesn't.
     # this worked so i stopped looking why
     # this also sets up following show or hide etc based on
     # STATUS messages
     # adjust image path name at runtime
     def _hal_init(self):
-        STATUS.connect('focus-overlay-changed', lambda w, data, text, color: 
+        STATUS.connect('focus-overlay-changed', lambda w, data, text, color:
                         self._status_response(data, text, color))
+        STATUS.connect('graphics-loading-progress',lambda w,f: self.updateProgress(f))
         if self.PREFS_:
             self.play_sound = self.PREFS_.getpref('overlay_play_sound', False, bool, 'SCREEN_OPTIONS')
             self.sound_type = self.PREFS_.getpref('overlay_sound_type', 'RING', str, 'SCREEN_OPTIONS')
@@ -207,6 +213,17 @@ class FocusOverlay(OverlayWidget, _HalWidgetBase):
     # Helper functions
     #################################################
 
+    def updateProgress(self,fraction):
+        if fraction <0:
+            self.progressbar.setValue(0)
+            self.progressbar.setFormat('')
+            self.progressbar.setVisible(False)
+            self.hide()
+        else:
+            self.progressbar.setVisible(True)
+            self.progressbar.setValue(fraction)
+            self.progressbar.setFormat('Loading: {}%'.format(fraction))
+
     # The basic overlay -transparence is set by bg_color
     def colorBackground(self, qp):
         qp.fillRect(self.rect(), self.bg_color)
@@ -238,14 +255,23 @@ class FocusOverlay(OverlayWidget, _HalWidgetBase):
     # buttons could be used as a dialog but would require a focus widget per
     # dialog action or some fancy coding for responses.
     def box(self):
+        hbox2 = QHBoxLayout()
+        hbox2.addStretch(1)
         self.mb = QLabel('<html><head/><body><p><span style=" font-size:30pt; \
                        font-weight:600;">%s</span></p></body></html>' % self.text, self)
         self.mb.setStyleSheet("background-color: black; color: white")
         self.mb.setAlignment(Qt.AlignVCenter | Qt.AlignCenter)
         self.mb.setVisible(self._show_text)
+        hbox2.addWidget(self.mb)
+
+        self.progressbar = QProgressBar()
+        self.progressbar.setStyleSheet("background-color: black; color: white")
+        self.progressbar.setRange(0,100)
+        self.progressbar.setVisible(False)
+        hbox2.addWidget(self.progressbar)
+
         hbox = QHBoxLayout()
         hbox.addStretch(1)
-
         self.okButton = QPushButton("OK")
         self.okButton.pressed.connect(self.okChecked)
         self.cancelButton = QPushButton("Cancel")
@@ -256,14 +282,15 @@ class FocusOverlay(OverlayWidget, _HalWidgetBase):
         hbox.addWidget(l)
         hbox.addWidget(self.okButton)
         hbox.addWidget(self.cancelButton)
+
         vbox = QVBoxLayout()
         vbox.addStretch(1)
-        vbox.addWidget(self.mb)
+        vbox.addLayout(hbox2)
         vbox.addLayout(hbox)
         self.setLayout(vbox)
         self.setGeometry(300, 300, 300, 150)
 
-    # would need to class patch for something realy useful
+    # would need to class patch for something really useful
     def okChecked(self):
         self.hide()
     def cancelChecked(self):
@@ -300,7 +327,7 @@ class FocusOverlay(OverlayWidget, _HalWidgetBase):
         self.mb.setVisible(value)
     def getShowText(self):
         return self._show_text
-    def resetShowText(self):
+    def resetShowText(self, value):
         self._show_text = True
         self.mb.setVisible(value)
 
@@ -358,6 +385,8 @@ class FocusOverlay(OverlayWidget, _HalWidgetBase):
 #################
 def main():
     import sys
+    from PyQt5.QtWidgets import QWidget, QApplication
+    from PyQt5.QtCore import QTimer
     app = QApplication(sys.argv)
 
     w = QWidget()
@@ -372,13 +401,19 @@ def main():
     # class patching is my new thing
     # class patch the OK button
     def newOk(w):
-        print 'Ok'
+        print('Ok')
         w.text = 'OK'
         # make update
         w.hide()
         w.show()
-    FocusOverlay.okChecked = newOk
 
+    def pop():
+        print('Pop')
+        f.show()
+        f.update()
+
+    FocusOverlay.okChecked = newOk
+    w.show()
     # could use f = FocusOverlay( w )
     # then dont need to adjust top level
     f = FocusOverlay()
@@ -387,10 +422,10 @@ def main():
     # set with qtproperty call
     f.setshow_buttons(True)
 
-    w.show()
+
 
     timer2 = QTimer()
-    timer2.timeout.connect(lambda: f.show())
+    timer2.timeout.connect(lambda:pop() )
     timer2.start(1500)
 
     sys.exit(app.exec_())

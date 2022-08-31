@@ -38,7 +38,7 @@ foreach class { Button Checkbutton Entry Label Listbox Menu Menubutton \
 }
 
 set ::EC(numjoints) [emc_ini "JOINTS" "KINS"]
-set ::EC(numspindles) 10 ;# curently 8 spindles allowed (0..7)
+set ::EC(numspindles) 10 ;# currently 8 spindles allowed (0..7)
                          ;# but legacy configs may have [SPINDLE_9]
                          ;# so allow up to 10 (0..9)
 
@@ -57,7 +57,7 @@ set ::EC(stanzas)  [list TUNE JOINT_ AXIS_ SPINDLE_]
 #               [JOINT_n]name=value
 #               where n is a suffix in {0 1 ...}
 #
-#  item==TUNE   using howmany==1 and items=="" specfies
+#  item==TUNE   using howmany==1 and items=="" specifies
 #               name/value pairs with no suffix like:
 #               [TUNE]name=value
 
@@ -92,19 +92,9 @@ proc askKill {} {
     exit
 }
 
-# Wizard logo
-set lname $::env(LINUXCNC_HOME)/share/linuxcnc/linuxcnc-wizard.gif
-if { [file exists $lname] } {
-   set logo [image create photo -file $lname]
-} else {
-   set logo ""
-}
-
 wm title . [msgcat::mc "LinuxCNC Calibration"]
-set logo [label .logo -image $logo]
 set ::EC(main) [frame .main ]
 set ::EC(nbook) [NoteBook .main.top]
-pack $logo -side left -anchor nw
 pack $::EC(main) -side left -expand yes -fill both \
     -padx 18 -pady 18 -anchor n
 pack $::EC(nbook) -side top -fill both -expand yes
@@ -311,7 +301,7 @@ proc incompatible_ini_file {} {
                L is an axis letter\n\
                S is a spindle number\n\n\
                A Halfile must include a setp\n\
-               for a suppored section item\n\n\
+               for a supported section item\n\n\
                Inifile example:\n\
                \[JOINT_0\]\n\
                PGAIN=1\n\

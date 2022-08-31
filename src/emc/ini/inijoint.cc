@@ -97,7 +97,7 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
     double ferror;
 
     // compose string to match, joint = 0 -> JOINT_0, etc.
-    sprintf(jointString, "JOINT_%d", joint);
+    snprintf(jointString, sizeof(jointString), "JOINT_%d", joint);
 
     jointIniFile->EnableExceptions(EmcIniFile::ERR_CONVERSION);
     
@@ -182,7 +182,7 @@ static int loadJoint(int joint, EmcIniFile *jointIniFile)
         ignore_limits = false;	        // default
         jointIniFile->Find(&ignore_limits, "HOME_IGNORE_LIMITS", jointString);
 
-        sequence = 999;// default: use unrealizable and postive sequence no.
+        sequence = 999;// default: use unrealizable and positive sequence no.
                        // so that joints with unspecified HOME_SEQUENCE=
                        // will not be homed in home-all
         jointIniFile->Find(&sequence, "HOME_SEQUENCE", jointString);

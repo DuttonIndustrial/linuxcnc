@@ -12,7 +12,7 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// Ancient compiler work-arounds
+// Ancient compiler workarounds
 ////////////////////////////////////////////////////////////////////////////////
 
 #if __cplusplus < 201402L
@@ -1057,6 +1057,10 @@ int Interp::convert_g7x(int mode,
     original_block.x_number=x;
     original_block.z_number=z;
 
+    int error=convert_straight(G_0, block, settings);
+    if(error!=INTERP_OK)
+	return error;
+
     g7x path;
     std::complex<double> start(z,x);
 
@@ -1166,7 +1170,7 @@ int Interp::convert_g7x(int mode,
 	}
 	CHP(read());
     }
-    if(path.size()==1)
+    if(path.size()<=1)
 	return INTERP_OK;
 
     double d=0, e=0, i=1, p=1, r=0.5, u=0, w=0;

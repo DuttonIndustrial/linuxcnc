@@ -21,13 +21,15 @@ set ::DEFAULT_AXIS_MIN_LIMIT -1e99
 set ::DEFAULT_AXIS_MAX_LIMIT +1e99
 #----------------------------------------------------------------------
 proc warnings msg {
-  puts "\n$::progname: ($::kins(module) kinematics) WARNING:"
+  puts -nonewline "\n$::progname:\n"
+  catch {puts ($::kins(module) kinematics) WARNING:"}
   foreach m $msg {puts "  $m"}
   puts ""
 } ;# warnings
 
 proc err_exit msg {
-  puts "\n$::progname: ($::kins(module) kinematics) ERROR:"
+  puts -nonewline "\n$::progname:\n"
+  catch {puts ($::kins(module) kinematics) ERROR:"}
   foreach m $msg {puts "  $m"}
   puts ""
   exit 1
@@ -151,10 +153,35 @@ proc check_extrajoints {} {
   }
   if [info exists ::num_extrajoints] {
      lappend ::wmsg [format "Extra joints specified=%d\n \
-\[KINS\]JOINTS=%d must accomodate kinematic joints *plus* extra joints " \
+\[KINS\]JOINTS=%d must accommodate kinematic joints *plus* extra joints " \
                      $::num_extrajoints $::KINS(JOINTS)]
   }
 } ;#check_extrajoints
+
+proc warn_for_multiple_ini_values {} {
+  set sections [info globals]
+  set sections_to_check {JOINT_ AXIS_}
+
+  foreach section $sections {
+    set enforce 0
+    foreach csection $sections_to_check {
+      if {[string first $csection $section"] >= 0} {
+        set enforce 1
+        break
+      }
+    }
+    if !$enforce continue
+    foreach name [array names ::$section] {
+       set gsection ::$section
+       set val [set [set gsection]($name)]
+       set len [llength $val]
+       if {$len > 1} {
+         lappend ::wmsg "Unexpected multiple values \[$section\]$name: $val"
+       }
+    }
+  }
+} ;# warn_for_multiple_ini_values
+
 #----------------------------------------------------------------------
 # begin
 package require Linuxcnc ;# parse_ini
@@ -203,7 +230,7 @@ switch $::kins(module) {
 }
 check_extrajoints
 
-
+warn_for_multiple_ini_values
 #parray ::kins
 set emsg [validate_identity_kins_limits]
 consistent_coords_for_trivkins $::kins(coordinates)

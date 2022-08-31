@@ -34,14 +34,14 @@
 */
 
 /** This library is free software; you can redistribute it and/or
-    modify it under the terms of version 2.1 of the GNU Lesser General
+    modify it under the terms of version 2 of the GNU Library General
     Public License as published by the Free Software Foundation.
     This library is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public
+    You should have received a copy of the GNU Library General Public
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
@@ -147,6 +147,9 @@ RTAPI_BEGIN_DECLS
 #define HAL_LOCK_PARAMS   4     /* locking of parameter set commands */
 #define HAL_LOCK_RUN      8     /* locking of start/stop of HAL threads */
 
+/* locks required for the 'tune' command */
+#define HAL_LOCK_TUNE (HAL_LOCK_LOAD | HAL_LOCK_CONFIG)
+
 #define HAL_LOCK_ALL      255   /* locks every action */
 
 /***********************************************************************
@@ -183,7 +186,7 @@ extern int hal_init(const char *name);
     crashes when the component's code and data is unmapped.
     'hal_exit()' calls 'rtapi_exit()', so any rtapi reaources
     allocated should be discarded before calling hal_exit(), and
-    rtapi functios should not be called afterwards.
+    rtapi functions should not be called afterwards.
     On success, hal_exit() returns 0, on failure it
     returns a negative error code.
 */
@@ -213,6 +216,13 @@ extern void *hal_malloc(long int size);
     component 'hal_example' is ready before continuing.
 */
 extern int hal_ready(int comp_id);
+
+/** hal_unready() indicates that this component is ready.  This allows
+    halcmd 'loadusr -W hal_example' to wait until the userspace
+    component 'hal_example' is ready before continuing.
+*/
+extern int hal_unready(int comp_id);
+
 
 /** hal_comp_name() returns the name of the given component, or NULL
     if comp_id is not a loaded component
@@ -256,6 +266,7 @@ extern char* hal_comp_name(int comp_id);
 */
 typedef enum {
     HAL_TYPE_UNSPECIFIED = -1,
+    HAL_TYPE_UNINITIALIZED = 0,
     HAL_BIT = 1,
     HAL_FLOAT = 2,
     HAL_S32 = 3,
@@ -302,6 +313,24 @@ typedef rtapi_u64 ireal_t __attribute__((aligned(8))); // integral type as wide 
 
 #define hal_float_t volatile real_t
        
+/** HAL "data union" structure
+ ** This structure may hold any type of hal data
+*/
+typedef union {
+    hal_bit_t b;
+    hal_s32_t s;
+    hal_u32_t u;
+    hal_float_t f;
+    hal_port_t p;
+} hal_data_u;
+
+typedef struct {
+    volatile unsigned int read;  //offset into buff that outgoing data gets read from
+    volatile unsigned int write; //offset into buff that incoming data gets written to
+    unsigned int size;           //size of allocated buffer
+    char buff[];
+} hal_port_shm_t;
+
 /***********************************************************************
 *                      "LOCKING" FUNCTIONS                             *
 ************************************************************************/
@@ -497,7 +526,7 @@ extern int hal_unlink(const char *pin_name);
     stored.  'data_addr' must point to memory allocated by hal_malloc().
     Typically the component allocates space for a data structure with
     hal_malloc(), and 'data_addr' is the address of a member of that
-    structure.  Creating the paremeter does not initialize or modify the
+    structure.  Creating the parameter does not initialize or modify the
     value at *data_addr - the component should load a reasonable default
     value.
     'comp_id' is the ID of the component that will 'own' the parameter.
@@ -596,6 +625,42 @@ extern int hal_param_alias(const char *pin_name, const char *alias);
     it returns a negative error code.
 */
 extern int hal_param_set(const char *name, hal_type_t type, void *value_addr);
+
+/***********************************************************************
+*                 PIN/SIG/PARAM GETTER FUNCTIONS                       *
+************************************************************************/
+
+/** 'hal_get_pin_value_by_name()' gets the value of any arbitrary HAL pin by
+ * pin name.
+ *
+ * The 'type' and 'data' args are pointers to the returned values.  The function
+ * returns 0 if successful, or -1 on error.  If 'connected' is non-NULL, its
+ * value will be true if a signal is connected.
+ */
+
+extern int hal_get_pin_value_by_name(
+    const char *name, hal_type_t *type, hal_data_u **data, bool *connected);
+
+/** 'hal_get_signal_value_by_name()' returns the value of any arbitrary HAL
+ * signal by signal name.
+ *
+ * The 'type' and 'data' args are pointers to the returned values.  The function
+ * returns 0 if successful, or -1 on error.  If 'has_writers' is non-NULL, its
+ * value will be true if the signal has writers.
+ */
+
+extern int hal_get_signal_value_by_name(
+    const char *name, hal_type_t *type, hal_data_u **data, bool *has_writers);
+
+/** 'hal_get_param_value_by_name()' returns the value of any arbitrary HAL
+ * parameter by parameter name.
+ *
+ * The 'type' and 'data' args are pointers to the returned values.  The function
+ * returns 0 if successful, or -1 on error.
+ */
+
+extern int hal_get_param_value_by_name(
+    const char *name, hal_type_t *type, hal_data_u **data);
 
 /***********************************************************************
 *                   EXECUTION RELATED FUNCTIONS                        *
@@ -737,10 +802,10 @@ extern int hal_set_constructor(int comp_id, constructor make);
 
 
 /******************************************************************************
-  A HAL port pin is an asyncronous one way byte stream
+  A HAL port pin is an asynchronous one way byte stream
   
   A hal port should have only one reader and one writer. Both sides can
-  read or write respectivly at any time without interfering with the other
+  read or write respectively at any time without interfering with the other
  
   A component that exports a PORT pin does not own the port buffer.
   The signal linking an input port to an output port owns the port buffer.

@@ -39,8 +39,9 @@
 #include "calc_sequential.h"
 #include "vars_names.h"
 #include "edit_sequential.h"
+#include <rtapi_string.h>
 
-/* We modify the datas in this variable. It is only
+/* We modify the data in this variable. It is only
    after clicking on apply that they are used */
 StrSequential EditSeqDatas;
 
@@ -63,11 +64,11 @@ void LoadSeqElementProperties( void )
 		switch( TypeSeqEleEdited )
 		{
 			case ELE_SEQ_STEP:
-				sprintf( TextToWrite, "%d", EditSeqDatas.Step[ OffsetSeqEleEdited ].StepNumber );
+				snprintf(TextToWrite, sizeof(TextToWrite), "%d", EditSeqDatas.Step[ OffsetSeqEleEdited ].StepNumber );
 				SetProperty(0,_("Step Nbr"),TextToWrite);
 				break;
 			case ELE_SEQ_TRANSITION:
-				strcpy( TextToWrite, CreateVarName( EditSeqDatas.Transition[ OffsetSeqEleEdited ].VarTypeCondi,
+				rtapi_strxcpy( TextToWrite, CreateVarName( EditSeqDatas.Transition[ OffsetSeqEleEdited ].VarTypeCondi,
 					EditSeqDatas.Transition[ OffsetSeqEleEdited ].VarNumCondi ) );
 				SetProperty(0,_("Variable"),TextToWrite);
 				break;

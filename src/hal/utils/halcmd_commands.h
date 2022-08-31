@@ -2,7 +2,7 @@
  * Copyright (C) 2003 John Kasunich
  *                     <jmkasunich AT users DOT sourceforge DOT net>
  *
- *  Other contributers:
+ *  Other contributors:
  *                     Martin Kuhnle
  *                     <mkuhnle AT users DOT sourceforge DOT net>
  *                     Alex Joni
@@ -68,25 +68,27 @@ extern int do_setp_cmd(char *name, char *value);
 extern int do_getp_cmd(char *name);
 extern int do_sets_cmd(char *name, char *value);
 extern int do_gets_cmd(char *name);
+extern int do_print_cmd(char *value);
 extern int do_ptype_cmd(char *name);
 extern int do_stype_cmd(char *name);
 extern int do_show_cmd(char *type, char **patterns);
 extern int do_list_cmd(char *type, char **patterns);
 extern int do_source_cmd(char *type);
 extern int do_status_cmd(char *type);
+extern int do_set_debug_cmd(char *level);
 extern int do_delsig_cmd(char *mod_name);
 extern int do_loadrt_cmd(char *mod_name, char *args[]);
 extern int do_unlinkp_cmd(char *mod_name);
 extern int do_unload_cmd(char *mod_name);
 extern int do_unloadrt_cmd(char *mod_name);
 extern int do_unloadusr_cmd(char *mod_name);
-extern int do_loadusr_cmd(char *args[]);
+extern int do_loadusr_cmd(const char *args[]);
 extern int do_waitusr_cmd(char *comp_name);
-extern int do_save_cmd(char *type, char *filename);
+extern int do_save_cmd(const char *type, char *filename);
 extern int do_setexact_cmd(void);
 
-pid_t hal_systemv_nowait(char *const argv[]);
-int hal_systemv(char *const argv[]);
+pid_t hal_systemv_nowait(const char *const argv[]);
+int hal_systemv(const char *const argv[]);
 
 extern int scriptmode, comp_id;
 

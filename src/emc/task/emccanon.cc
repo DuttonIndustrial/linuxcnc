@@ -42,6 +42,9 @@
 #include "canon_position.hh"		// data type for a machine position
 #include "interpl.hh"		// interp_list
 #include "emcglb.h"		// TRAJ_MAX_VELOCITY
+#include <rtapi_string.h>
+#include "modal_state.hh"
+#include "tooldata.hh"
 
 //#define EMCCANON_DEBUG
 
@@ -68,7 +71,13 @@
 static CanonConfig_t canon;
 
 static int debug_velacc = 0;
-static const double tiny = 1e-7;
+
+static StateTag _tag;
+
+void UPDATE_TAG(StateTag tag) {
+    canon_debug("--Got UPDATE_TAG: %d--\n",tag.fields[GM_FIELD_LINE_NUMBER]);
+    _tag = tag;
+}
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -139,6 +148,22 @@ struct AccelData{
 static PM_QUATERNION quat(1, 0, 0, 0);
 
 static void flush_segments(void);
+
+static inline void add_tag_to_msg(NMLmsg * msg, StateTag const &tag){
+    //FIXME this better be an EMC_TRAJ message or bad things will happen
+    ((EMC_TRAJ_CMD_MSG *) msg)->tag = tag;
+}
+
+
+/**
+ * Add the the given line number and append the message to the interp list.
+ * Note that the append function takes the message by reference, so this also
+ * needs to have the message passed in by reference or it barfs.
+ */
+static inline void tag_and_send(NMLmsg &msg, StateTag const &tag) {
+    add_tag_to_msg(&msg,tag);
+    interp_list.append(msg);
+}
 
 /*
   These decls were from the old 3-axis canon.hh, and refer functions
@@ -848,7 +873,11 @@ static VelData getStraightVelocity(CANON_POSITION pos)
 }
 
 #include <vector>
-struct pt { double x, y, z, a, b, c, u, v, w; int line_no;};
+struct pt {
+    double x, y, z, a, b, c, u, v, w;
+    int line_no;
+    StateTag tag;
+};
 
 static std::vector<struct pt> chained_points;
 
@@ -917,7 +946,7 @@ static void flush_segments(void) {
     linearMoveMsg.indexer_jnum = -1;
     if ((vel && acc) || canon.spindle[canon.spindle_num].synched) {
         interp_list.set_line_number(line_no);
-        interp_list.append(linearMoveMsg);
+        tag_and_send(linearMoveMsg,pos.tag);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -975,6 +1004,7 @@ linkable(double x, double y, double z,
 
 static void
 see_segment(int line_number,
+	    StateTag tag,
 	    double x, double y, double z, 
             double a, double b, double c,
             double u, double v, double w) {
@@ -989,7 +1019,7 @@ see_segment(int line_number,
     if(!chained_points.empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
         flush_segments();
     }
-    pt pos = {x, y, z, a, b, c, u, v, w, line_number};
+    pt pos = {x, y, z, a, b, c, u, v, w, line_number, tag};
     chained_points.push_back(pos);
     if(changed_abc || changed_uvw) {
         flush_segments();
@@ -1042,7 +1072,7 @@ void STRAIGHT_TRAVERSE(int line_number,
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-        interp_list.append(linearMoveMsg);
+        tag_and_send(linearMoveMsg, _tag);
     }
 
     if(old_feed_mode)
@@ -1061,7 +1091,7 @@ void STRAIGHT_FEED(int line_number,
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-    see_segment(line_number, x, y, z, a, b, c, u, v, w);
+    see_segment(line_number, _tag, x, y, z, a, b, c, u, v, w);
 }
 
 
@@ -1466,7 +1496,7 @@ void ARC_FEED(int line_number,
     if( canon.activePlane == CANON_PLANE_XY && canon.motionMode == CANON_CONTINUOUS) {
         double mx, my;
         double lx, ly, lz;
-        double unused;
+        double unused = 0;
 
         get_last_pos(lx, ly, lz);
 
@@ -1483,7 +1513,7 @@ void ARC_FEED(int line_number,
             w = FROM_PROG_LEN(w);
 
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
-            see_segment(line_number, mx, my,
+            see_segment(line_number, _tag, mx, my,
                         (lz + ae)/2, 
                         (canon.endPoint.a + a)/2, 
                         (canon.endPoint.b + b)/2, 
@@ -1491,7 +1521,7 @@ void ARC_FEED(int line_number,
                         (canon.endPoint.u + u)/2, 
                         (canon.endPoint.v + v)/2, 
                         (canon.endPoint.w + w)/2);
-            see_segment(line_number, fe, se, ae, a, b, c, u, v, w);
+            see_segment(line_number, _tag, fe, se, ae, a, b, c, u, v, w);
             return;
         }
     }
@@ -1782,7 +1812,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.indexer_jnum = -1;
         if(vel && a_max){
             interp_list.set_line_number(line_number);
-            interp_list.append(linearMoveMsg);
+            tag_and_send(linearMoveMsg, _tag);
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1808,7 +1838,7 @@ void ARC_FEED(int line_number,
         // seems to be a crude way to indicate a zero length segment?
         if(vel && a_max) {
             interp_list.set_line_number(line_number);
-            interp_list.append(circularMoveMsg);
+            tag_and_send(circularMoveMsg, _tag);
         }
     }
     // update the end point
@@ -2091,13 +2121,13 @@ void CHANGE_TOOL(int slot)
 	if(canon.feed_mode)
 	    STOP_SPEED_FEED_SYNCH();
 
-        if(vel && acc) 
-            interp_list.append(linearMoveMsg);
+    if(vel && acc)
+        tag_and_send(linearMoveMsg, _tag);
 
-	if(old_feed_mode)
-	    START_SPEED_FEED_SYNCH(canon.spindle_num, canon.linearFeedRate, 1);
+    if(old_feed_mode)
+        START_SPEED_FEED_SYNCH(canon.spindle_num, canon.linearFeedRate, 1);
 
-        canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
+    canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
     }
 
     /* regardless of optional moves above, we'll always send a load tool
@@ -2105,12 +2135,11 @@ void CHANGE_TOOL(int slot)
     interp_list.append(load_tool_msg);
 }
 
-/* SELECT_POCKET results from Tn */
-void SELECT_POCKET(int slot , int tool)
+/* SELECT_TOOL results from Tn */
+void SELECT_TOOL(int tool)
 {
     EMC_TOOL_PREPARE prep_for_tool_msg;
 
-    prep_for_tool_msg.pocket = slot;
     prep_for_tool_msg.tool = tool;
 
     interp_list.append(prep_for_tool_msg);
@@ -2126,6 +2155,11 @@ void CHANGE_TOOL_NUMBER(int pocket_number)
     interp_list.append(emc_tool_set_number_msg);
 }
 
+void RELOAD_TOOLDATA(void)
+{
+    EMC_TOOL_LOAD_TOOL_TABLE load_tool_table_msg;
+    interp_list.append(load_tool_table_msg);
+}
 
 /* Misc Functions */
 
@@ -2535,7 +2569,6 @@ void INIT_CANON()
     canon.g92Offset.w = 0.0;
     SELECT_PLANE(CANON_PLANE_XY);
     canonUpdateEndPoint(0, 0, 0, 0, 0, 0, 0, 0, 0);
-    SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
     SET_NAIVECAM_TOLERANCE(0);
     for (int s = 0; s < EMCMOT_MAX_SPINDLES; s++) {
         canon.spindle[s].speed = 0.0;
@@ -2564,6 +2597,12 @@ void INIT_CANON()
 	CANON_ERROR
 	    ("non-standard length units, setting interpreter to mm");
 	canon.lengthUnits = CANON_UNITS_MM;
+    }
+    /* Set blending tolerance default depending on units machine is based on*/
+    if (canon.lengthUnits == CANON_UNITS_INCHES) {
+        SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, .001);
+    } else {
+        SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS,  .001 * MM_PER_INCH);
     }
 }
 
@@ -2596,22 +2635,24 @@ void CANON_ERROR(const char *fmt, ...)
   Tool table is always in machine units.
 
   */
-CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket)
+CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int idx)
 {
-    CANON_TOOL_TABLE retval;
+    CANON_TOOL_TABLE tdata;
 
-    if (pocket < 0 || pocket >= CANON_POCKETS_MAX) {
-	retval.toolno = -1;
-        ZERO_EMC_POSE(retval.offset);
-        retval.frontangle = 0.0;
-        retval.backangle = 0.0;
-	retval.diameter = 0.0;
-        retval.orientation = 0;
+    if (idx < 0 || idx >= CANON_POCKETS_MAX) {
+        tdata.toolno = -1;
+        tdata.pocketno = 0;
+        ZERO_EMC_POSE(tdata.offset);
+        tdata.frontangle = 0.0;
+        tdata.backangle = 0.0;
+        tdata.diameter = 0.0;
+        tdata.orientation = 0;
     } else {
-	retval = emcStatus->io.tool.toolTable[pocket];
+        if (tooldata_get(&tdata,idx) != IDX_OK) {
+            fprintf(stderr,"UNEXPECTED idx %s %d\n",__FILE__,__LINE__);
+        }
     }
-
-    return retval;
+    return tdata;
 }
 
 CANON_POSITION GET_EXTERNAL_POSITION()
@@ -2791,11 +2832,6 @@ CANON_DIRECTION GET_EXTERNAL_SPINDLE(int spindle)
     return CANON_COUNTERCLOCKWISE;
 }
 
-int GET_EXTERNAL_POCKETS_MAX()
-{
-    return CANON_POCKETS_MAX;
-}
-
 static char _parameter_file_name[LINELEN];
 
 void SET_PARAMETER_FILE_NAME(const char *name)
@@ -2956,6 +2992,11 @@ double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE()
     return TO_PROG_LEN(canon.motionTolerance);
 }
 
+double GET_EXTERNAL_MOTION_CONTROL_NAIVECAM_TOLERANCE()
+{
+    return TO_PROG_LEN(canon.naivecamTolerance);
+}
+
 
 CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE()
 {
@@ -2972,18 +3013,14 @@ int GET_EXTERNAL_QUEUE_EMPTY(void)
 // Returns the "home pocket" of the tool currently in the spindle, ie the
 // pocket that the current tool was loaded from.  Returns 0 if there is no
 // tool in the spindle.
+
 int GET_EXTERNAL_TOOL_SLOT()
 {
     int toolno = emcStatus->io.tool.toolInSpindle;
-    int pocket;
 
-    for (pocket = 1; pocket < CANON_POCKETS_MAX; pocket++) {
-        if (emcStatus->io.tool.toolTable[pocket].toolno == toolno) {
-            return pocket;
-        }
-    }
+    if (toolno == -1) {return -1;} // detect request for invalid tool
 
-    return 0;  // no tool in spindle
+    return tooldata_find_index_for_tool(toolno);
 }
 
 // If the tool changer has prepped a pocket (after a Txxx command) and is
@@ -2992,7 +3029,7 @@ int GET_EXTERNAL_TOOL_SLOT()
 // run, or because an M6 tool change has completed), return -1.
 int GET_EXTERNAL_SELECTED_TOOL_SLOT()
 {
-    return emcStatus->io.tool.pocketPrepped;
+    return emcStatus->io.tool.pocketPrepped; //idx
 }
 
 int GET_EXTERNAL_TC_FAULT()
@@ -3150,7 +3187,7 @@ void CLEAR_MOTION_OUTPUT_BIT(int index)
   right away.
   The pin gets set with value 1 at the begin of motion, and stays 1 at the end of motion
   (this behaviour can be changed if needed)
-  you can use any number of these, as the effect is imediate  
+  you can use any number of these, as the effect is immediate  
 */
 void SET_AUX_OUTPUT_BIT(int index)
 {
@@ -3162,7 +3199,7 @@ void SET_AUX_OUTPUT_BIT(int index)
   dout_msg.index = index;
   dout_msg.start = 1;		// startvalue = 1
   dout_msg.end = 1;		// endvalue = 1, means it doesn't get reset after current motion
-  dout_msg.now = 1;		// immediate, we don't care about synching for AUX
+  dout_msg.now = 1;		// immediate, we don't care about syncing for AUX
 
   interp_list.append(dout_msg);
 
@@ -3176,7 +3213,7 @@ void SET_AUX_OUTPUT_BIT(int index)
   right away.
   The pin gets set with value 0 at the begin of motion, and stays 0 at the end of motion
   (this behaviour can be changed if needed)
-  you can use any number of these, as the effect is imediate  
+  you can use any number of these, as the effect is immediate  
 */
 void CLEAR_AUX_OUTPUT_BIT(int index)
 {
@@ -3187,7 +3224,7 @@ void CLEAR_AUX_OUTPUT_BIT(int index)
   dout_msg.index = index;
   dout_msg.start = 0;           // startvalue = 1
   dout_msg.end = 0;		// endvalue = 0, means it stays 0 after current motion
-  dout_msg.now = 1;		// immediate, we don't care about synching for AUX
+  dout_msg.now = 1;		// immediate, we don't care about syncing for AUX
 
   interp_list.append(dout_msg);
 
